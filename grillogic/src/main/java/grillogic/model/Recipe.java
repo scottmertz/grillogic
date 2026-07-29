@@ -1,0 +1,38 @@
+package grillogic.model;
+
+import jakarta.persistence.*;
+import lombok.Data;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "recipe")
+@Data
+public class Recipe {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String name;
+
+    // How many portions this recipe yields (e.g. a batch of chili makes 20 servings)
+    @Column(nullable = false)
+    private Integer servings;
+
+    // Menu price for this dish, if it's a sellable item
+    @Column(name = "menu_price")
+    private Double menuPrice;
+
+    // Labor cost as a percentage of menu price (e.g. 0.30 = 30%)
+    @Column(name = "labor_cost_pct")
+    private Double laborCostPct;
+
+    // The list of ingredients (and amounts) that make up this recipe.
+    // "mappedBy" tells Hibernate the RecipeIngredient.recipe field owns the actual foreign key —
+    // this side is just the reverse lookup, no extra column created here.
+    @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<RecipeIngredient> ingredients = new ArrayList<>();
+}
