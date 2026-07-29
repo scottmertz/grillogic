@@ -70,4 +70,43 @@ public class RecipeController {
                 foodCostPct != null ? String.format("%.1f%%", foodCostPct * 100) : "N/A"
         );
     }
+
+    @PutMapping("/{id}")
+    public Recipe updateRecipe(@PathVariable Long id, @RequestBody RecipeCreateRequest request) {
+        Recipe existing = recipeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Recipe not found: " + id));
+
+        existing.setName(request.getName());
+        existing.setServings(request.getServings());
+        existing.setMenuPrice(request.getMenuPrice());
+        existing.setLaborCostPct(request.getLaborCostPct());
+
+        // Clear the old ingredient lines — orphanRemoval=true (set on Recipe.ingredients)
+        // means Hibernate will actually DELETE the old rows, not just unlink them.
+        existing.getIngredients().clear();
+
+        for (RecipeIngredientRequest lineRequest : request.getIngredients()) {
+            Ingredient ingredient = ingredientRepository.findById(lineRequest.getIngredientId())
+                    .orElseThrow(() -> new RuntimeException(
+                            "Ingredient not found: " + lineRequest.getIngredientId()));
+
+            RecipeIngredient line = new RecipeIngredient();
+            line.setIngredient(ingredient);
+            line.setAmount(lineRequest.getAmount());
+            line.setAmountUnit(lineRequest.getAmountUnit());
+            line.setRecipe(existing);
+
+            existing.getIngredients().add(line);
+        }
+
+        return recipeRepository.save(existing);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteRecipe(@PathVariable Long id) {
+        if (!recipeRepository.existsById(id)) {
+            throw new RuntimeException("Recipe not found: " + id);
+        }
+        recipeRepository.deleteById(id);
+    }
 }

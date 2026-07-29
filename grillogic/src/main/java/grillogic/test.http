@@ -37,3 +37,55 @@ Content-Type: application/json
 
 ### Get the recipe's cost
 GET http://localhost:8080/api/recipes/1/cost
+
+### Update Ketchup (id=1) — change price
+PUT http://localhost:8080/api/ingredients/1
+Content-Type: application/json
+
+{
+  "name": "Ketchup",
+  "purchaseUnit": "LB",
+  "purchasePrice": 45.00,
+  "purchaseAmount": 42,
+  "category": "Condiment",
+  "yieldPct": 1.0
+}
+
+### Confirm the update
+GET http://localhost:8080/api/ingredients/1
+
+### Update Test Burger (id=1) — bump ketchup amount to 4 oz
+PUT http://localhost:8080/api/recipes/1
+Content-Type: application/json
+
+{
+  "name": "Test Burger",
+  "servings": 1,
+  "menuPrice": 12.00,
+  "laborCostPct": 0.30,
+  "ingredients": [
+    {
+      "ingredientId": 1,
+      "amount": 4,
+      "amountUnit": "OZ"
+    }
+  ]
+}
+
+### Confirm the recipe cost changed
+GET http://localhost:8080/api/recipes/1/cost
+
+### Delete the recipe
+DELETE http://localhost:8080/api/recipes/1
+
+### Confirm it's gone (should 404/error)
+GET http://localhost:8080/api/recipes/1/cost
+
+### Delete the ingredient
+DELETE http://localhost:8080/api/ingredients/1
+
+### Confirm it's gone (should error)
+GET http://localhost:8080/api/ingredients/1
+
+### Clean up leftover duplicate recipe
+DELETE http://localhost:8080/api/recipes/2
