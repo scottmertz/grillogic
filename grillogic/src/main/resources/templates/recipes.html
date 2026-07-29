@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>GRILLOGIC — Recipes</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-container">
+    <div class="app-header">
+        <div class="app-logo">GRILLOGIC</div>
+        <div class="app-nav">
+            <a href="/ingredients" style="color:white;">Ingredients</a>
+            <span id="userEmail"></span>
+            <button id="logoutBtn" class="btn-link">Log Out</button>
+        </div>
+    </div>
+
+    <div class="app-content">
+        <h1>New Recipe</h1>
+
+        <div class="card">
+            <div class="inline-form">
+                <div class="form-group">
+                    <label>Recipe Name</label>
+                    <input type="text" id="recipeName" required>
+                    <label for="recipeName">Recipe Name</label>
+                </div>
+                <div class="form-group">
+                    <label>Servings</label>
+                    <select id="servings" required>
+                        <option th:each="i : ${#numbers.sequence(1, 24)}" th:value="${i}" th:text="${i}"></option>
+                    </select>
+                    <label for="servings">Servings</label>
+                </div>
+                <div class="form-group">
+                    <label>Menu Price ($)</label>
+                    <input type="number" id="menuPrice" step="0.01" min="0">
+                    <label for="menuPrice">Menu Price ($)</label>
+                </div>
+                <div class="form-group">
+                    <label>Labor Cost %</label>
+                    <select id="laborCostPct">
+                        <option th:each="i : ${#numbers.sequence(0, 60, 5)}"
+                                th:value="${i / 100.0}"
+                                th:text="${i} + '%'"
+                                th:selected="${i == 30}"></option>
+                    </select>
+                    <label for="laborCostPct">Labor Cost %</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Ingredients</h2>
+
+            <div class="inline-form" style="margin-bottom:16px;">
+                <div class="form-group" style="flex:2;">
+                    <label>Ingredient</label>
+                    <input type="text" id="ingredientSearch" list="ingredientOptions" placeholder="Start typing...">
+                    <label for="ingredientSearch">Ingredient</label>
+                    <datalist id="ingredientOptions"></datalist>
+                </div>
+                <div class="form-group">
+                    <label>Amount</label>
+                    <input type="number" id="lineAmount" step="0.01" min="0">
+                    <label for="lineAmount">Amount</label>
+                </div>
+                <div class="form-group">
+                    <label>Unit</label>
+                    <select id="lineUnit">
+                        <option value="G">G</option>
+                        <option value="KG">KG</option>
+                        <option value="OZ">OZ</option>
+                        <option value="LB">LB</option>
+                        <option value="ML">ML</option>
+                        <option value="L">L</option>
+                        <option value="FL_OZ">FL OZ</option>
+                        <option value="CUP">CUP</option>
+                        <option value="TSP">TSP</option>
+                        <option value="TBSP">TBSP</option>
+                        <option value="EACH">EACH</option>
+                    </select>
+                    <label for="lineUnit">Unit</label>
+                </div>
+                <button type="button" id="addLineBtn" class="btn-primary">+ Add Line</button>
+            </div>
+
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>Ingredient</th>
+                    <th>Amount</th>
+                    <th>Est. Line Cost</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody id="linesBody"></tbody>
+            </table>
+        </div>
+
+        <div class="card" style="text-align:right;">
+            <div style="font-size:11pt; margin-bottom:6px;">
+                Estimated Total Cost: <b id="totalCostDisplay">$0.00</b>
+            </div>
+            <div style="font-size:11pt; margin-bottom:16px;">
+                Estimated Food Cost %: <b id="foodCostDisplay">—</b>
+            </div>
+            <button type="button" id="saveRecipeBtn" class="btn-primary" style="width:auto; padding:12px 28px;">Save Recipe</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('grillogic_token');
+    if (!token) window.location.href = '/login';
+    document.getElementById('userEmail').textContent = localStorage.getItem('grillogic_email') || '';
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+        localStorage.clear();
+        window.location.href = '/login';
+    });
+
+    // Same conversion factors as UnitConverter.java — kept in sync manually.
+    // Purpose: instant client-side preview only. The backend recalculates the
+    // real, authoritative cost when the recipe is actually saved.
+    const UNIT_BASE = {
+        G: 1, KG: 1000, OZ: 28.3495, LB: 453.592,
+        ML: 1, L: 1000, FL_OZ: 29.5735, CUP: 236.588, TSP: 4.92892, TBSP: 14.7868,
+        EACH: 1
+    };
+    const WEIGHT_UNITS = ['G','KG','OZ','LB'];
+    const VOLUME_UNITS = ['ML','L','FL_OZ','CUP','TSP','TBSP'];
+
+    function convert(amount, from, to) {
+        if (from === to) return amount;
+        if (from === 'EACH' || to === 'EACH') return null;
+        const bothWeight = WEIGHT_UNITS.includes(from) && WEIGHT_UNITS.includes(to);
+        const bothVolume = VOLUME_UNITS.includes(from) && VOLUME_UNITS.includes(to);
+        if (!bothWeight && !bothVolume) return null;
+        return (amount * UNIT_BASE[from]) / UNIT_BASE[to];
+    }
+
+    let allIngredients = [];
+    let recipeLines = []; // { ingredient, amount, unit, estCost }
+
+    async function loadIngredients() {
+        const response = await fetch('/api/ingredients', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (response.status === 401 || response.status === 403) {
+            localStorage.clear();
+            window.location.href = '/login';
+            return;
+        }
+        allIngredients = await response.json();
+
+        const datalist = document.getElementById('ingredientOptions');
+        datalist.innerHTML = '';
+        allIngredients.forEach(ing => {
+            const opt = document.createElement('option');
+            opt.value = ing.name;
+            datalist.appendChild(opt);
+        });
+    }
+
+    function estimateLineCost(ingredient, amount, unit) {
+        const converted = convert(amount, unit, ingredient.purchaseUnit);
+        if (converted === null) return null; // incompatible units — can't estimate
+        const costPerPurchaseUnit = ingredient.purchasePrice / ingredient.purchaseAmount;
+        let cost = converted * costPerPurchaseUnit;
+        if (ingredient.yieldPct && ingredient.yieldPct > 0 && ingredient.yieldPct < 1.0) {
+            cost = cost / ingredient.yieldPct;
+        }
+        return cost;
+    }
+
+    function renderLines() {
+        const tbody = document.getElementById('linesBody');
+        tbody.innerHTML = '';
+        let total = 0;
+
+        recipeLines.forEach((line, index) => {
+            total += (line.estCost || 0);
+            const row = document.createElement('tr');
+            row.innerHTML = `
+            <td>${line.ingredient.name}</td>
+            <td>${line.amount} ${line.unit}</td>
+            <td>${line.estCost !== null ? '$' + line.estCost.toFixed(2) : 'N/A (unit mismatch)'}</td>
+            <td><button type="button" class="btn-link" onclick="removeLine(${index})">Remove</button></td>
+        `;
+            tbody.appendChild(row);
+        });
+
+        document.getElementById('totalCostDisplay').textContent = '$' + total.toFixed(2);
+
+        const servings = parseInt(document.getElementById('servings').value) || 1;
+        const menuPrice = parseFloat(document.getElementById('menuPrice').value);
+        const perServing = total / servings;
+
+        if (menuPrice && menuPrice > 0) {
+            const pct = (perServing / menuPrice) * 100;
+            document.getElementById('foodCostDisplay').textContent = pct.toFixed(1) + '%';
+        } else {
+            document.getElementById('foodCostDisplay').textContent = '—';
+        }
+    }
+
+    function removeLine(index) {
+        recipeLines.splice(index, 1);
+        renderLines();
+    }
+
+    document.getElementById('addLineBtn').addEventListener('click', function() {
+        const name = document.getElementById('ingredientSearch').value;
+        const amount = parseFloat(document.getElementById('lineAmount').value);
+        const unit = document.getElementById('lineUnit').value;
+
+        const ingredient = allIngredients.find(i => i.name === name);
+        if (!ingredient) {
+            alert('Please select a valid ingredient from the list.');
+            return;
+        }
+        if (!amount || amount <= 0) {
+            alert('Please enter a valid amount.');
+            return;
+        }
+
+        const estCost = estimateLineCost(ingredient, amount, unit);
+        recipeLines.push({ ingredient, amount, unit, estCost });
+
+        document.getElementById('ingredientSearch').value = '';
+        document.getElementById('lineAmount').value = '';
+        renderLines();
+    });
+
+    document.getElementById('servings').addEventListener('change', renderLines);
+    document.getElementById('menuPrice').addEventListener('input', renderLines);
+
+    document.getElementById('saveRecipeBtn').addEventListener('click', async function() {
+        const payload = {
+            name: document.getElementById('recipeName').value,
+            servings: parseInt(document.getElementById('servings').value),
+            menuPrice: parseFloat(document.getElementById('menuPrice').value) || null,
+            laborCostPct: parseFloat(document.getElementById('laborCostPct').value),
+            ingredients: recipeLines.map(line => ({
+                ingredientId: line.ingredient.id,
+                amount: line.amount,
+                amountUnit: line.unit
+            }))
+        };
+
+        if (!payload.name || recipeLines.length === 0) {
+            alert('Please enter a recipe name and at least one ingredient.');
+            return;
+        }
+
+        const response = await fetch('/api/recipes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            alert('Recipe saved!');
+            window.location.href = '/recipes';
+        } else {
+            alert('Failed to save recipe.');
+        }
+    });
+
+    loadIngredients();
+</script>
+
+</body>
+</html>

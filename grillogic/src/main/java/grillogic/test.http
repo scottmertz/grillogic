@@ -132,3 +132,29 @@ Content-Type: application/json
 ### Hit the protected endpoint WITH a token
 GET http://localhost:8080/api/ingredients
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0QGdyaWxsb2dpYy5jb20iLCJyb2xlIjoiQ0xJRU5UIiwiaWF0IjoxNzg1Mjk4MTMxLCJleHAiOjE3ODUzODQ1MzF9.fgrmlda-9ZAvfQn_uhbRI68_WLC1RNKT61CSqRDi97iDkfZWvhnZe-07__gYYXjT
+
+### Confirm the new recipe saved with correct data
+GET http://localhost:8080/api/recipes/3/cost
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0QGdyaWxsb2dpYy5jb20iLCJyb2xlIjoiQ0xJRU5UIiwiaWF0IjoxNzg1MzQyOTA3LCJleHAiOjE3ODU0MjkzMDd9.pQPHWQBaa5Dp1devmj51GTKCRklcuVAAg7WhrPYmETEF1uifxG9oQpuXuzEvoOzf
+
+### Sign up a second test user
+POST http://localhost:8080/api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "client2@example.com",
+  "password": "testpass456"
+}
+
+### Login as the second user
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "client2@example.com",
+  "password": "testpass456"
+}
+
+### Get ingredients AS client2 — should be empty, NOT show Ketchup
+GET http://localhost:8080/api/ingredients
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJjbGllbnQyQGV4YW1wbGUuY29tIiwicm9sZSI6IkNMSUVOVCIsImlhdCI6MTc4NTM0NTkzNSwiZXhwIjoxNzg1NDMyMzM1fQ.IAUpF-Y1ZE-bb8p1WnS3zfNAVhuN1pkJuAlqmEn5gV55DTuaBP098_TjSl6A_pPH

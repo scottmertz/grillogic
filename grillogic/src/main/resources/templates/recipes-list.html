@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>GRILLOGIC — Recipes</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-container">
+    <div class="app-header">
+        <div class="app-logo">GRILLOGIC</div>
+        <div class="app-nav">
+            <a href="/ingredients" style="color:white;">Ingredients</a>
+            <a href="/recipes" style="color:white;">+ New Recipe</a>
+            <span id="userEmail"></span>
+            <button id="logoutBtn" class="btn-link">Log Out</button>
+        </div>
+    </div>
+
+    <div class="app-content">
+        <h1>Recipes</h1>
+
+        <div class="card">
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Servings</th>
+                    <th>Menu Price</th>
+                    <th>Cost / Serving</th>
+                    <th>Food Cost %</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody id="recipesBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('grillogic_token');
+    if (!token) window.location.href = '/login';
+    document.getElementById('userEmail').textContent = localStorage.getItem('grillogic_email') || '';
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+        localStorage.clear();
+        window.location.href = '/login';
+    });
+
+    function foodCostBadge(pct) {
+        if (pct === null || pct === undefined) return '<span style="color:#888;">N/A</span>';
+        const percent = (pct * 100).toFixed(1) + '%';
+        let color = '#2D6A4F'; // good
+        if (pct * 100 >= 35) color = '#CC3300'; // high/critical
+        else if (pct * 100 >= 30) color = '#E67E22'; // borderline
+        return `<b style="color:${color};">${percent}</b>`;
+    }
+
+    async function loadRecipes() {
+        const response = await fetch('/api/recipes', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+
+        if (response.status === 401 || response.status === 403) {
+            localStorage.clear();
+            window.location.href = '/login';
+            return;
+        }
+
+        const recipes = await response.json();
+        const tbody = document.getElementById('recipesBody');
+        tbody.innerHTML = '';
+
+        if (recipes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#888;">No recipes yet.</td></tr>';
+            return;
+        }
+
+        recipes.forEach(r => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+            <td>${r.name}</td>
+            <td>${r.servings}</td>
+            <td>${r.menuPrice ? '$' + r.menuPrice.toFixed(2) : '—'}</td>
+            <td>$${r.costPerServing.toFixed(2)}</td>
+            <td>${foodCostBadge(r.foodCostPct)}</td>
+            <td><a href="/recipes/${r.id}/cost-view">View</a></td>
+        `;
+            tbody.appendChild(row);
+        });
+    }
+
+    loadRecipes();
+</script>
+
+</body>
+</html>

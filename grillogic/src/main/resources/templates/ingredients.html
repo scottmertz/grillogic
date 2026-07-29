@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>GRILLOGIC — Ingredients</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-container">
+    <div class="app-header">
+        <div class="app-logo">GRILLOGIC</div>
+        <div class="app-nav">
+            <span id="userEmail"></span>
+            <button id="logoutBtn" class="btn-link">Log Out</button>
+        </div>
+    </div>
+
+    <div class="app-content">
+        <h1>Ingredients</h1>
+
+        <div class="card">
+            <h2>Add Ingredient</h2>
+            <form id="addIngredientForm" class="inline-form">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="name" required>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="category" required>
+                        <option value="Protein">Protein</option>
+                        <option value="Produce">Produce</option>
+                        <option value="Dairy">Dairy</option>
+                        <option value="Dry Goods">Dry Goods</option>
+                        <option value="Condiment">Condiment</option>
+                        <option value="Beverage">Beverage</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Purchase Price ($)</label>
+                    <input type="number" id="purchasePrice" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Purchase Amount</label>
+                    <input type="number" id="purchaseAmount" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Purchase Unit</label>
+                    <select id="purchaseUnit" required>
+                        <option value="G">G (grams)</option>
+                        <option value="KG">KG (kilograms)</option>
+                        <option value="OZ">OZ (ounces)</option>
+                        <option value="LB">LB (pounds)</option>
+                        <option value="ML">ML (milliliters)</option>
+                        <option value="L">L (liters)</option>
+                        <option value="FL_OZ">FL OZ (fluid ounces)</option>
+                        <option value="CUP">CUP</option>
+                        <option value="TSP">TSP (teaspoon)</option>
+                        <option value="TBSP">TBSP (tablespoon)</option>
+                        <option value="EACH">EACH</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Yield %</label>
+                    <select id="yieldPct" required>
+                        <option value="1.0">100% (no loss)</option>
+                        <option value="0.95">95%</option>
+                        <option value="0.90">90%</option>
+                        <option value="0.85">85%</option>
+                        <option value="0.80">80%</option>
+                        <option value="0.75">75%</option>
+                        <option value="0.70">70%</option>
+                        <option value="0.65">65%</option>
+                        <option value="0.60">60%</option>
+                        <option value="0.50">50%</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-primary">Add Ingredient</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>All Ingredients</h2>
+            <table id="ingredientsTable" class="data-table">
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Purchase Price</th>
+                    <th>Purchase Amount</th>
+                    <th>Unit</th>
+                    <th>Yield %</th>
+                </tr>
+                </thead>
+                <tbody id="ingredientsBody">
+                <!-- Filled in by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('grillogic_token');
+
+    // If there's no token at all, don't even try — send them to login immediately
+    if (!token) {
+        window.location.href = '/login';
+    }
+
+    document.getElementById('userEmail').textContent = localStorage.getItem('grillogic_email') || '';
+
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+        localStorage.clear();
+        window.location.href = '/login';
+    });
+
+    async function loadIngredients() {
+        const response = await fetch('/api/ingredients', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+
+        if (response.status === 401 || response.status === 403) {
+            // Token missing, expired, or invalid — force a fresh login
+            localStorage.clear();
+            window.location.href = '/login';
+            return;
+        }
+
+        const ingredients = await response.json();
+        const tbody = document.getElementById('ingredientsBody');
+        tbody.innerHTML = '';
+
+        ingredients.forEach(ing => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+            <td>${ing.name}</td>
+            <td>${ing.category}</td>
+            <td>$${ing.purchasePrice.toFixed(2)}</td>
+            <td>${ing.purchaseAmount}</td>
+            <td>${ing.purchaseUnit}</td>
+            <td>${(ing.yieldPct * 100).toFixed(0)}%</td>
+        `;
+            tbody.appendChild(row);
+        });
+    }
+
+    document.getElementById('addIngredientForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const payload = {
+            name: document.getElementById('name').value,
+            category: document.getElementById('category').value,
+            purchasePrice: parseFloat(document.getElementById('purchasePrice').value),
+            purchaseAmount: parseFloat(document.getElementById('purchaseAmount').value),
+            purchaseUnit: document.getElementById('purchaseUnit').value,
+            yieldPct: parseFloat(document.getElementById('yieldPct').value)
+        };
+
+        const response = await fetch('/api/ingredients', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            document.getElementById('addIngredientForm').reset();
+            loadIngredients(); // refresh the table with the new ingredient
+        } else {
+            alert('Failed to add ingredient.');
+        }
+    });
+
+    // Load the ingredient list as soon as the page is ready
+    loadIngredients();
+</script>
+
+</body>
+</html>

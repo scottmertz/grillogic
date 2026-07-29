@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>GRILLOGIC — Login</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="page-wrapper">
+    <div class="auth-card">
+        <div class="auth-logo">GRILLOGIC</div>
+        <div class="auth-subtitle">Menu Profitability Audit</div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" required>
+            </div>
+            <button type="submit" class="btn-primary">Log In</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const errorBox = document.getElementById('errorMessage');
+        errorBox.style.display = 'none';
+
+        try {
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                errorBox.textContent = errorData.error || 'Login failed.';
+                errorBox.style.display = 'block';
+                return;
+            }
+
+            const data = await response.json();
+
+            // Store the token in the browser so future page/API requests can use it
+            localStorage.setItem('grillogic_token', data.token);
+            localStorage.setItem('grillogic_email', data.email);
+            localStorage.setItem('grillogic_role', data.role);
+
+            // Redirect to the ingredients page (next thing we'll build)
+            if (data.role === 'ADMIN') {
+                window.location.href = '/ingredients';
+            } else {
+                window.location.href = '/dashboard';
+            }
+
+        } catch (err) {
+            errorBox.textContent = 'Something went wrong. Please try again.';
+            errorBox.style.display = 'block';
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -2,14 +2,19 @@ package grillogic.controller;
 
 import grillogic.controller.dto.RecipeCreateRequest;
 import grillogic.controller.dto.RecipeIngredientRequest;
+import grillogic.controller.dto.RecipeSummaryResponse;
 import grillogic.model.Ingredient;
 import grillogic.model.Recipe;
 import grillogic.model.RecipeIngredient;
 import grillogic.repository.IngredientRepository;
 import grillogic.repository.RecipeRepository;
 import grillogic.service.CostingService;
+import grillogic.service.CurrentUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/recipes")
@@ -18,19 +23,25 @@ public class RecipeController {
     private final RecipeRepository recipeRepository;
     private final IngredientRepository ingredientRepository;
     private final CostingService costingService;
+    private final CurrentUserService currentUserService;
 
     @Autowired
     public RecipeController(RecipeRepository recipeRepository,
                             IngredientRepository ingredientRepository,
-                            CostingService costingService) {
+                            CostingService costingService,
+                            CurrentUserService currentUserService) {
         this.recipeRepository = recipeRepository;
         this.ingredientRepository = ingredientRepository;
         this.costingService = costingService;
+        this.currentUserService = currentUserService;
     }
 
     @PostMapping
     public Recipe createRecipe(@RequestBody RecipeCreateRequest request) {
+        Long ownerId = currentUserService.getCurrentUser().getId();
+
         Recipe recipe = new Recipe();
+        recipe.setOwnerId(ownerId);
         recipe.setName(request.getName());
         recipe.setServings(request.getServings());
         recipe.setMenuPrice(request.getMenuPrice());
@@ -45,12 +56,32 @@ public class RecipeController {
             line.setIngredient(ingredient);
             line.setAmount(lineRequest.getAmount());
             line.setAmountUnit(lineRequest.getAmountUnit());
-            line.setRecipe(recipe); // link back to the parent recipe
+            line.setRecipe(recipe);
 
             recipe.getIngredients().add(line);
         }
 
         return recipeRepository.save(recipe);
+    }
+
+    @GetMapping
+    public List<RecipeSummaryResponse> getAllRecipes() {
+        Long ownerId = currentUserService.getCurrentUser().getId();
+
+        return recipeRepository.findAll().stream()
+                .filter(r -> r.getOwnerId().equals(ownerId))
+                .map(recipe -> {
+                    RecipeSummaryResponse dto = new RecipeSummaryResponse();
+                    dto.setId(recipe.getId());
+                    dto.setName(recipe.getName());
+                    dto.setServings(recipe.getServings());
+                    dto.setMenuPrice(recipe.getMenuPrice());
+                    dto.setTotalCost(costingService.totalRecipeCost(recipe));
+                    dto.setCostPerServing(costingService.costPerServing(recipe));
+                    dto.setFoodCostPct(costingService.foodCostPercent(recipe));
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/{id}/cost")
@@ -81,8 +112,6 @@ public class RecipeController {
         existing.setMenuPrice(request.getMenuPrice());
         existing.setLaborCostPct(request.getLaborCostPct());
 
-        // Clear the old ingredient lines — orphanRemoval=true (set on Recipe.ingredients)
-        // means Hibernate will actually DELETE the old rows, not just unlink them.
         existing.getIngredients().clear();
 
         for (RecipeIngredientRequest lineRequest : request.getIngredients()) {

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>GRILLOGIC — Dashboard</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-container">
+    <div class="app-header">
+        <div class="app-logo">GRILLOGIC</div>
+        <div class="app-nav">
+            <span id="userEmail"></span>
+            <button id="logoutBtn" class="btn-link">Log Out</button>
+        </div>
+    </div>
+
+    <div class="app-content">
+        <h1>Your Dashboard</h1>
+
+        <div class="card" id="summaryCard">
+            <h2>Overview</h2>
+            <div id="summaryStats"></div>
+        </div>
+
+        <div class="card">
+            <h2>Your Recipes</h2>
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>Recipe</th>
+                    <th>Servings</th>
+                    <th>Menu Price</th>
+                    <th>Cost / Serving</th>
+                    <th>Food Cost %</th>
+                </tr>
+                </thead>
+                <tbody id="recipesBody"></tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>Your Ingredients</h2>
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Purchase Price</th>
+                    <th>Unit</th>
+                </tr>
+                </thead>
+                <tbody id="ingredientsBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('grillogic_token');
+    if (!token) window.location.href = '/login';
+    document.getElementById('userEmail').textContent = localStorage.getItem('grillogic_email') || '';
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+        localStorage.clear();
+        window.location.href = '/login';
+    });
+
+    function foodCostBadge(pct) {
+        if (pct === null || pct === undefined) return '<span style="color:#888;">N/A</span>';
+        const percent = (pct * 100).toFixed(1) + '%';
+        let color = '#2D6A4F';
+        if (pct * 100 >= 35) color = '#CC3300';
+        else if (pct * 100 >= 30) color = '#E67E22';
+        return `<b style="color:${color};">${percent}</b>`;
+    }
+
+    async function authFetch(url) {
+        const response = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+        if (response.status === 401 || response.status === 403) {
+            localStorage.clear();
+            window.location.href = '/login';
+            return null;
+        }
+        return response.json();
+    }
+
+    async function loadDashboard() {
+        const [recipes, ingredients] = await Promise.all([
+            authFetch('/api/recipes'),
+            authFetch('/api/ingredients')
+        ]);
+
+        if (recipes === null || ingredients === null) return;
+
+        // Summary stats
+        const critical = recipes.filter(r => r.foodCostPct !== null && r.foodCostPct >= 0.35).length;
+        const solid = recipes.filter(r => r.foodCostPct !== null && r.foodCostPct < 0.30).length;
+
+        document.getElementById('summaryStats').innerHTML = `
+        <div style="display:flex; gap:32px; font-size:10pt;">
+            <div><b style="font-size:20pt; color:#1A3C2A;">${recipes.length}</b><br>Total Recipes</div>
+            <div><b style="font-size:20pt; color:#CC3300;">${critical}</b><br>Critical Food Cost (35%+)</div>
+            <div><b style="font-size:20pt; color:#2D6A4F;">${solid}</b><br>Solid Margin (under 30%)</div>
+            <div><b style="font-size:20pt; color:#1A3C2A;">${ingredients.length}</b><br>Ingredients Tracked</div>
+        </div>
+    `;
+
+        // Recipes table
+        const recipesBody = document.getElementById('recipesBody');
+        if (recipes.length === 0) {
+            recipesBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#888;">No recipes yet. Your GRILLOGIC audit will populate this once complete.</td></tr>';
+        } else {
+            recipesBody.innerHTML = recipes.map(r => `
+            <tr>
+                <td>${r.name}</td>
+                <td>${r.servings}</td>
+                <td>${r.menuPrice ? '$' + r.menuPrice.toFixed(2) : '—'}</td>
+                <td>$${r.costPerServing.toFixed(2)}</td>
+                <td>${foodCostBadge(r.foodCostPct)}</td>
+            </tr>
+        `).join('');
+        }
+
+        // Ingredients table
+        const ingredientsBody = document.getElementById('ingredientsBody');
+        if (ingredients.length === 0) {
+            ingredientsBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#888;">No ingredients yet.</td></tr>';
+        } else {
+            ingredientsBody.innerHTML = ingredients.map(i => `
+            <tr>
+                <td>${i.name}</td>
+                <td>${i.category}</td>
+                <td>$${i.purchasePrice.toFixed(2)}</td>
+                <td>${i.purchaseUnit}</td>
+            </tr>
+        `).join('');
+        }
+    }
+
+    loadDashboard();
+</script>
+
+</body>
+</html>

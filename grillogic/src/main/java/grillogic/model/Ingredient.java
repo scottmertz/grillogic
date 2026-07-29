@@ -34,4 +34,8 @@ public class Ingredient {
     // Yield % after trim/cook loss — 1.0 = no loss, 0.85 = 15% loss
     @Column(name = "yield_pct")
     private Double yieldPct;
+
+    // Which User (client) this ingredient belongs to. Defaults to whoever created it.
+    @Column(name = "owner_id", nullable = false)
+    private Long ownerId;
 }

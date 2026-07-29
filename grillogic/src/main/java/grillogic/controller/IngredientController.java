@@ -2,30 +2,40 @@ package grillogic.controller;
 
 import grillogic.model.Ingredient;
 import grillogic.repository.IngredientRepository;
+import grillogic.service.CurrentUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/ingredients")
 public class IngredientController {
 
     private final IngredientRepository ingredientRepository;
+    private final CurrentUserService currentUserService;
 
     @Autowired
-    public IngredientController(IngredientRepository ingredientRepository) {
+    public IngredientController(IngredientRepository ingredientRepository,
+                                CurrentUserService currentUserService) {
         this.ingredientRepository = ingredientRepository;
+        this.currentUserService = currentUserService;
     }
 
     @PostMapping
     public Ingredient createIngredient(@RequestBody Ingredient ingredient) {
+        Long ownerId = currentUserService.getCurrentUser().getId();
+        ingredient.setOwnerId(ownerId);
         return ingredientRepository.save(ingredient);
     }
 
     @GetMapping
     public List<Ingredient> getAllIngredients() {
-        return ingredientRepository.findAll();
+        Long ownerId = currentUserService.getCurrentUser().getId();
+        return ingredientRepository.findAll().stream()
+                .filter(i -> i.getOwnerId().equals(ownerId))
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")

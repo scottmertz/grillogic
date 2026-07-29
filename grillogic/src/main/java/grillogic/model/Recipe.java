@@ -35,4 +35,7 @@ public class Recipe {
     // this side is just the reverse lookup, no extra column created here.
     @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RecipeIngredient> ingredients = new ArrayList<>();
+
+    @Column(name = "owner_id", nullable = false)
+    private Long ownerId;
 }
