@@ -1,0 +1,39 @@
+### Create an ingredient — Ketchup, 42 lb case
+POST http://localhost:8080/api/ingredients
+Content-Type: application/json
+
+{
+  "name": "Ketchup",
+  "purchaseUnit": "LB",
+  "purchasePrice": 42.00,
+  "purchaseAmount": 42,
+  "category": "Condiment",
+  "yieldPct": 1.0
+}
+
+### Get all ingredients
+GET http://localhost:8080/api/ingredients
+
+### Get one ingredient by id (change the 1 once you know the real id)
+GET http://localhost:8080/api/ingredients/1package grillogic.config;
+
+### Create a recipe using Ketchup (id=1)
+POST http://localhost:8080/api/recipes
+Content-Type: application/json
+
+{
+  "name": "Test Burger",
+  "servings": 1,
+  "menuPrice": 12.00,
+  "laborCostPct": 0.30,
+  "ingredients": [
+    {
+      "ingredientId": 1,
+      "amount": 2,
+      "amountUnit": "OZ"
+    }
+  ]
+}
+
+### Get the recipe's cost
+GET http://localhost:8080/api/recipes/1/cost

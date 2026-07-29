@@ -1,26 +1,59 @@
 package grillogic.controller;
 
+import grillogic.controller.dto.RecipeCreateRequest;
+import grillogic.controller.dto.RecipeIngredientRequest;
+import grillogic.model.Ingredient;
 import grillogic.model.Recipe;
+import grillogic.model.RecipeIngredient;
+import grillogic.repository.IngredientRepository;
 import grillogic.repository.RecipeRepository;
 import grillogic.service.CostingService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequestMapping("/api/recipes")
 public class RecipeController {
 
     private final RecipeRepository recipeRepository;
+    private final IngredientRepository ingredientRepository;
     private final CostingService costingService;
 
     @Autowired
-    public RecipeController(RecipeRepository recipeRepository, CostingService costingService) {
+    public RecipeController(RecipeRepository recipeRepository,
+                            IngredientRepository ingredientRepository,
+                            CostingService costingService) {
         this.recipeRepository = recipeRepository;
+        this.ingredientRepository = ingredientRepository;
         this.costingService = costingService;
     }
 
-    @GetMapping("/api/recipes/{id}/cost")
+    @PostMapping
+    public Recipe createRecipe(@RequestBody RecipeCreateRequest request) {
+        Recipe recipe = new Recipe();
+        recipe.setName(request.getName());
+        recipe.setServings(request.getServings());
+        recipe.setMenuPrice(request.getMenuPrice());
+        recipe.setLaborCostPct(request.getLaborCostPct());
+
+        for (RecipeIngredientRequest lineRequest : request.getIngredients()) {
+            Ingredient ingredient = ingredientRepository.findById(lineRequest.getIngredientId())
+                    .orElseThrow(() -> new RuntimeException(
+                            "Ingredient not found: " + lineRequest.getIngredientId()));
+
+            RecipeIngredient line = new RecipeIngredient();
+            line.setIngredient(ingredient);
+            line.setAmount(lineRequest.getAmount());
+            line.setAmountUnit(lineRequest.getAmountUnit());
+            line.setRecipe(recipe); // link back to the parent recipe
+
+            recipe.getIngredients().add(line);
+        }
+
+        return recipeRepository.save(recipe);
+    }
+
+    @GetMapping("/{id}/cost")
     public String getRecipeCost(@PathVariable Long id) {
         Recipe recipe = recipeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Recipe not found: " + id));
