@@ -89,3 +89,46 @@ GET http://localhost:8080/api/ingredients/1
 
 ### Clean up leftover duplicate recipe
 DELETE http://localhost:8080/api/recipes/2
+
+### Sign up a test user
+POST http://localhost:8080/api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "test@grillogic.com",
+  "password": "supersecret123"
+}
+
+### Login with correct password
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@grillogic.com",
+  "password": "supersecret123"
+}
+
+### Login with WRONG password
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@grillogic.com",
+  "password": "wrongpassword"
+}
+
+### Try hitting a protected endpoint WITHOUT a token — should now be rejected
+GET http://localhost:8080/api/ingredients
+
+### Login again to get a fresh token
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@grillogic.com",
+  "password": "supersecret123"
+}
+
+### Hit the protected endpoint WITH a token
+GET http://localhost:8080/api/ingredients
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0QGdyaWxsb2dpYy5jb20iLCJyb2xlIjoiQ0xJRU5UIiwiaWF0IjoxNzg1Mjk4MTMxLCJleHAiOjE3ODUzODQ1MzF9.fgrmlda-9ZAvfQn_uhbRI68_WLC1RNKT61CSqRDi97iDkfZWvhnZe-07__gYYXjT
