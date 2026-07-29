@@ -19,8 +19,12 @@ public class RecipeIngredient {
 
     // Which ingredient is being used
     @ManyToOne
-    @JoinColumn(name = "ingredient_id", nullable = false)
+    @JoinColumn(name = "ingredient_id", nullable = true)
     private Ingredient ingredient;
+
+    @ManyToOne
+    @JoinColumn(name = "sub_recipe_id", nullable = true)
+    private Recipe subRecipe;
 
     // How much of that ingredient this recipe uses
     @Column(nullable = false)

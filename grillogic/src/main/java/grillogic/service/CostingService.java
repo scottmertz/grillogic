@@ -25,30 +25,40 @@ public class CostingService {
      * Accounts for unit conversion and yield loss.
      */
     public double costOfLine(RecipeIngredient line) {
+        if (line.getIngredient() != null) {
+            return costFromIngredient(line);
+        } else if (line.getSubRecipe() != null) {
+            return costFromSubRecipe(line);
+        } else {
+            throw new IllegalStateException("RecipeIngredient line has neither an ingredient nor a sub-recipe set.");
+        }
+    }
+
+    private double costFromIngredient(RecipeIngredient line) {
         Ingredient ingredient = line.getIngredient();
-
-        // Cost per purchase unit (e.g. $42.00 / 42 lb = $1.00 per lb)
         double costPerPurchaseUnit = ingredient.getPurchasePrice() / ingredient.getPurchaseAmount();
-
-        // Convert the recipe's amount into the same unit as the purchase unit
-        // e.g. recipe calls for 7 OZ, ingredient is purchased in LB -> convert 7 OZ to LB
-        double amountInPurchaseUnit = unitConverter.convert(
-                line.getAmount(),
-                line.getAmountUnit(),
-                ingredient.getPurchaseUnit()
-        );
-
+        double amountInPurchaseUnit = unitConverter.convert(line.getAmount(), line.getAmountUnit(), ingredient.getPurchaseUnit());
         double rawCost = amountInPurchaseUnit * costPerPurchaseUnit;
 
-        // Apply yield loss: if yieldPct is 0.85 (15% loss), you needed MORE raw
-        // product to get this much usable product, so cost goes UP.
-        // Null or 1.0 yieldPct means no loss adjustment needed.
         Double yieldPct = ingredient.getYieldPct();
         if (yieldPct != null && yieldPct > 0 && yieldPct < 1.0) {
             rawCost = rawCost / yieldPct;
         }
-
         return rawCost;
+    }
+
+    private double costFromSubRecipe(RecipeIngredient line) {
+        Recipe subRecipe = line.getSubRecipe();
+        if (subRecipe.getBatchYieldAmount() == null || subRecipe.getBatchYieldUnit() == null) {
+            throw new IllegalStateException(
+                    "Recipe '" + subRecipe.getName() + "' has no batch yield set, so it can't be used as a sub-recipe.");
+        }
+
+        double subRecipeTotalCost = totalRecipeCost(subRecipe); // recursive call
+        double costPerBatchUnit = subRecipeTotalCost / subRecipe.getBatchYieldAmount();
+
+        double amountInBatchUnit = unitConverter.convert(line.getAmount(), line.getAmountUnit(), subRecipe.getBatchYieldUnit());
+        return amountInBatchUnit * costPerBatchUnit;
     }
 
     /**

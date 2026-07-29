@@ -38,4 +38,12 @@ public class Recipe {
 
     @Column(name = "owner_id", nullable = false)
     private Long ownerId;
+
+    // Only needed if this recipe will be used AS an ingredient in another recipe
+    @Column(name = "batch_yield_amount")
+    private Double batchYieldAmount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "batch_yield_unit")
+    private Unit batchYieldUnit;
 }
