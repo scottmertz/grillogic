@@ -158,3 +158,103 @@ Content-Type: application/json
 ### Get ingredients AS client2 — should be empty, NOT show Ketchup
 GET http://localhost:8080/api/ingredients
 Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJjbGllbnQyQGV4YW1wbGUuY29tIiwicm9sZSI6IkNMSUVOVCIsImlhdCI6MTc4NTM0NTkzNSwiZXhwIjoxNzg1NDMyMzM1fQ.IAUpF-Y1ZE-bb8p1WnS3zfNAVhuN1pkJuAlqmEn5gV55DTuaBP098_TjSl6A_pPH
+
+### Create a sub-recipe WITH batch yield
+POST http://localhost:8080/api/recipes
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0QGdyaWxsb2dpYy5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3ODUzNzUxNzYsImV4cCI6MTc4NTQ2MTU3Nn0.MmkHPPl3UON0W6ZGnnJOmN_b7nzdKZ5xa7qcYr7z0L4TQGEA1wCqpe7CEasFzZ9Q
+
+{
+  "name": "House Ketchup Blend",
+  "servings": 1,
+  "batchYieldAmount": 32,
+  "batchYieldUnit": "OZ",
+  "ingredients": [
+    {
+      "ingredientId": 2,
+      "amount": 32,
+      "amountUnit": "OZ"
+    }
+  ]
+}
+
+### Create a recipe that uses the sub-recipe (House Ketchup Blend, id=5) as a line
+POST http://localhost:8080/api/recipes
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0QGdyaWxsb2dpYy5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3ODUzNzUxNzYsImV4cCI6MTc4NTQ2MTU3Nn0.MmkHPPl3UON0W6ZGnnJOmN_b7nzdKZ5xa7qcYr7z0L4TQGEA1wCqpe7CEasFzZ9Q
+
+{
+  "name": "Test Burger V2",
+  "servings": 1,
+  "menuPrice": 12.00,
+  "laborCostPct": 0.30,
+  "ingredients": [
+    {
+      "subRecipeId": 5,
+      "amount": 2,
+      "amountUnit": "OZ"
+    }
+  ]
+}
+
+### Get Test Burger V2's cost (id=6)
+GET http://localhost:8080/api/recipes/6/cost
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0QGdyaWxsb2dpYy5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3ODUzNzUxNzYsImV4cCI6MTc4NTQ2MTU3Nn0.MmkHPPl3UON0W6ZGnnJOmN_b7nzdKZ5xa7qcYr7z0L4TQGEA1wCqpe7CEasFzZ9Q
+
+### Add raw Pork Butt ingredient
+POST http://localhost:8080/api/ingredients
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0QGdyaWxsb2dpYy5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3ODUzNzY2NDMsImV4cCI6MTc4NTQ2MzA0M30.lvq4_mj4Cmg2tmDR0tY5flfB8rnQ7k_-7zU1Zx6jc5Sg-l3SEpVd6vtUn8sPPIr_
+
+{
+  "name": "Pork Butt (Raw)",
+  "category": "Protein",
+  "purchasePrice": 60.00,
+  "purchaseAmount": 20,
+  "purchaseUnit": "LB",
+  "yieldPct": 1.0
+}
+
+### Smoked Pork Butt sub-recipe — no dedicated labor (blended into shift)
+POST http://localhost:8080/api/recipes
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0QGdyaWxsb2dpYy5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3ODUzNzY2NDMsImV4cCI6MTc4NTQ2MzA0M30.lvq4_mj4Cmg2tmDR0tY5flfB8rnQ7k_-7zU1Zx6jc5Sg-l3SEpVd6vtUn8sPPIr_
+
+{
+  "name": "Pork Butt - Smoked",
+  "servings": 1,
+  "batchYieldAmount": 11,
+  "batchYieldUnit": "LB",
+  "ingredients": [
+    {
+      "ingredientId": 3,
+      "amount": 20,
+      "amountUnit": "LB"
+    }
+  ]
+}
+
+### Same smoked pork butt, but WITH dedicated labor this time
+POST http://localhost:8080/api/recipes
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0QGdyaWxsb2dpYy5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3ODUzNzY2NDMsImV4cCI6MTc4NTQ2MzA0M30.lvq4_mj4Cmg2tmDR0tY5flfB8rnQ7k_-7zU1Zx6jc5Sg-l3SEpVd6vtUn8sPPIr_
+
+{
+  "name": "Pork Butt - Smoked (Dedicated Labor)",
+  "servings": 1,
+  "batchYieldAmount": 11,
+  "batchYieldUnit": "LB",
+  "dedicatedLaborHours": 12,
+  "dedicatedLaborRate": 18.00,
+  "ingredients": [
+    {
+      "ingredientId": 3,
+      "amount": 20,
+      "amountUnit": "LB"
+    }
+  ]
+}
+
+### Generate the full audit report PDF
+GET http://localhost:8080/api/reports/full-audit
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0QGdyaWxsb2dpYy5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3ODU0Mjc3NDQsImV4cCI6MTc4NTUxNDE0NH0.GPyZWfCPs66vmFWus1glSptTevoRuydmql0BW8TT589xFuz-QI63obIAQCDudewM

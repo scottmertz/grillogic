@@ -11,4 +11,8 @@ public class RecipeCreateRequest {
     private Double menuPrice;
     private Double laborCostPct;
     private List<RecipeIngredientRequest> ingredients;
+    private Double batchYieldAmount;
+    private grillogic.model.Unit batchYieldUnit;
+    private Double dedicatedLaborHours;
+    private Double dedicatedLaborRate;
 }

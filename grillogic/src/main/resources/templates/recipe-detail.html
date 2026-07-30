@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>GRILLOGIC — Recipe Detail</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-container">
+    <div class="app-header">
+        <img src="/img/logo.png" alt="GRILLOGIC" class="app-logo-img">
+        <div class="app-nav">
+            <a href="/ingredients">Ingredients</a>
+            <a href="/recipes">+ New Recipe</a>
+            <a href="/recipes/list">All Recipes</a>
+            <span id="userEmail"></span>
+            <button id="logoutBtn" class="btn-link">Log Out</button>
+        </div>
+    </div>
+
+    <div class="app-content">
+        <a href="/recipes/list" style="font-size:9pt; color:var(--mgray);">&larr; Back to Recipes</a>
+        <h1 id="recipeName" style="margin-top:8px;"></h1>
+        <div id="batchBadge"></div>
+
+        <div class="card">
+            <h2>Overview</h2>
+            <div id="overviewStats"></div>
+        </div>
+
+        <div class="card">
+            <h2>Ingredient Lines</h2>
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Type</th>
+                    <th>Amount</th>
+                    <th>Cost</th>
+                </tr>
+                </thead>
+                <tbody id="linesBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('grillogic_token');
+    if (!token) window.location.href = '/login';
+    document.getElementById('userEmail').textContent = localStorage.getItem('grillogic_email') || '';
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+        localStorage.clear();
+        window.location.href = '/login';
+    });
+
+    // Pull the recipe id out of the URL path, e.g. /recipes/6/view -> "6"
+    const pathParts = window.location.pathname.split('/');
+    const recipeId = pathParts[2];
+
+    function foodCostBadge(pct) {
+        if (pct === null || pct === undefined) return '<span style="color:#888;">N/A</span>';
+        const percent = (pct * 100).toFixed(1) + '%';
+        let color = '#2D6A4F';
+        if (pct * 100 >= 35) color = '#CC3300';
+        else if (pct * 100 >= 30) color = '#E67E22';
+        return `<b style="color:${color};">${percent}</b>`;
+    }
+
+    async function loadDetail() {
+        const response = await fetch('/api/recipes/' + recipeId + '/detail', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+
+        if (response.status === 401 || response.status === 403) {
+            localStorage.clear();
+            window.location.href = '/login';
+            return;
+        }
+        if (!response.ok) {
+            document.getElementById('recipeName').textContent = 'Recipe not found';
+            return;
+        }
+
+        const r = await response.json();
+
+        document.getElementById('recipeName').textContent = r.name;
+
+        if (r.batchYieldAmount && r.batchYieldUnit) {
+            document.getElementById('batchBadge').innerHTML =
+                `<span style="background:var(--light-green); color:var(--dark-green); padding:3px 10px; border-radius:12px; font-size:8.5pt; font-weight:700;">
+                BATCH — yields ${r.batchYieldAmount} ${r.batchYieldUnit}
+            </span>`;
+        }
+
+        let laborLine = '';
+        if (r.dedicatedLaborHours && r.dedicatedLaborRate) {
+            const laborCost = r.dedicatedLaborHours * r.dedicatedLaborRate;
+            laborLine = `<div>Dedicated Labor: ${r.dedicatedLaborHours} hrs &times; $${r.dedicatedLaborRate.toFixed(2)}/hr = $${laborCost.toFixed(2)}</div>`;
+        }
+
+        document.getElementById('overviewStats').innerHTML = `
+        <div style="display:flex; gap:32px; font-size:10pt; margin-bottom:12px;">
+            <div><b style="font-size:18pt; color:#1A3C2A;">$${r.totalCost.toFixed(2)}</b><br>Total Cost</div>
+            <div><b style="font-size:18pt; color:#1A3C2A;">$${r.costPerServing.toFixed(2)}</b><br>Cost / Serving</div>
+            <div><b style="font-size:18pt;">${foodCostBadge(r.foodCostPct)}</b><br>Food Cost %</div>
+            <div><b style="font-size:18pt; color:#1A3C2A;">${r.menuPrice ? '$' + r.menuPrice.toFixed(2) : '—'}</b><br>Menu Price</div>
+        </div>
+        ${laborLine}
+    `;
+
+        const tbody = document.getElementById('linesBody');
+        tbody.innerHTML = r.lines.map(line => `
+        <tr>
+            <td>${line.name}</td>
+            <td>${line.type}</td>
+            <td>${line.amount} ${line.unit}</td>
+            <td>$${line.cost.toFixed(2)}</td>
+        </tr>
+    `).join('');
+    }
+
+    loadDetail();
+</script>
+
+</body>
+</html>

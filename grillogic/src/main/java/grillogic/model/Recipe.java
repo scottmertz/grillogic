@@ -46,4 +46,13 @@ public class Recipe {
     @Enumerated(EnumType.STRING)
     @Column(name = "batch_yield_unit")
     private Unit batchYieldUnit;
+
+    // Optional — only used if this operator pays DEDICATED labor for this
+    // recipe/prep (e.g. a paid pit boss), as opposed to labor blended into a
+    // normal shift. Null/0 means no dedicated labor cost is added.
+    @Column(name = "dedicated_labor_hours")
+    private Double dedicatedLaborHours;
+
+    @Column(name = "dedicated_labor_rate")
+    private Double dedicatedLaborRate;
 }

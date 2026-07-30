@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import grillogic.controller.dto.RecipeResponse;
 
 @RestController
 @RequestMapping("/api/recipes")
@@ -37,7 +38,7 @@ public class RecipeController {
     }
 
     @PostMapping
-    public Recipe createRecipe(@RequestBody RecipeCreateRequest request) {
+    public RecipeResponse createRecipe(@RequestBody RecipeCreateRequest request) {
         Long ownerId = currentUserService.getCurrentUser().getId();
 
         Recipe recipe = new Recipe();
@@ -46,22 +47,41 @@ public class RecipeController {
         recipe.setServings(request.getServings());
         recipe.setMenuPrice(request.getMenuPrice());
         recipe.setLaborCostPct(request.getLaborCostPct());
+        recipe.setBatchYieldAmount(request.getBatchYieldAmount());
+        recipe.setBatchYieldUnit(request.getBatchYieldUnit());
+        recipe.setDedicatedLaborHours(request.getDedicatedLaborHours());
+        recipe.setDedicatedLaborRate(request.getDedicatedLaborRate());
 
         for (RecipeIngredientRequest lineRequest : request.getIngredients()) {
-            Ingredient ingredient = ingredientRepository.findById(lineRequest.getIngredientId())
-                    .orElseThrow(() -> new RuntimeException(
-                            "Ingredient not found: " + lineRequest.getIngredientId()));
-
             RecipeIngredient line = new RecipeIngredient();
-            line.setIngredient(ingredient);
             line.setAmount(lineRequest.getAmount());
             line.setAmountUnit(lineRequest.getAmountUnit());
-            line.setRecipe(recipe);
+            line.setRecipe(recipe); // in updateRecipe, use "existing" instead of "recipe"
 
-            recipe.getIngredients().add(line);
+            if (lineRequest.getIngredientId() != null) {
+                Ingredient ingredient = ingredientRepository.findById(lineRequest.getIngredientId())
+                        .orElseThrow(() -> new RuntimeException(
+                                "Ingredient not found: " + lineRequest.getIngredientId()));
+                line.setIngredient(ingredient);
+            } else if (lineRequest.getSubRecipeId() != null) {
+                Recipe subRecipe = recipeRepository.findById(lineRequest.getSubRecipeId())
+                        .orElseThrow(() -> new RuntimeException(
+                                "Sub-recipe not found: " + lineRequest.getSubRecipeId()));
+                line.setSubRecipe(subRecipe);
+            } else {
+                throw new RuntimeException("Each recipe line must specify either an ingredientId or a subRecipeId.");
+            }
+
+            recipe.getIngredients().add(line); // in updateRecipe, use "existing.getIngredients()" instead
         }
 
-        return recipeRepository.save(recipe);
+        Recipe saved = recipeRepository.save(recipe);
+        RecipeResponse response = new RecipeResponse();
+        response.setId(saved.getId());
+        response.setName(saved.getName());
+        response.setServings(saved.getServings());
+        response.setMenuPrice(saved.getMenuPrice());
+        return response;
     }
 
     @GetMapping
@@ -79,6 +99,11 @@ public class RecipeController {
                     dto.setTotalCost(costingService.totalRecipeCost(recipe));
                     dto.setCostPerServing(costingService.costPerServing(recipe));
                     dto.setFoodCostPct(costingService.foodCostPercent(recipe));
+                    dto.setBatchYieldAmount(recipe.getBatchYieldAmount());
+                    dto.setBatchYieldUnit(recipe.getBatchYieldUnit());
+                    dto.setIsBatchRecipe(recipe.getBatchYieldAmount() != null && recipe.getBatchYieldUnit() != null);
+                    dto.setDedicatedLaborHours(recipe.getDedicatedLaborHours());
+                    dto.setDedicatedLaborRate(recipe.getDedicatedLaborRate());
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -103,7 +128,7 @@ public class RecipeController {
     }
 
     @PutMapping("/{id}")
-    public Recipe updateRecipe(@PathVariable Long id, @RequestBody RecipeCreateRequest request) {
+    public RecipeResponse updateRecipe(@PathVariable Long id, @RequestBody RecipeCreateRequest request) {
         Recipe existing = recipeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Recipe not found: " + id));
 
@@ -111,24 +136,42 @@ public class RecipeController {
         existing.setServings(request.getServings());
         existing.setMenuPrice(request.getMenuPrice());
         existing.setLaborCostPct(request.getLaborCostPct());
-
+        existing.setBatchYieldAmount(request.getBatchYieldAmount());
+        existing.setBatchYieldUnit(request.getBatchYieldUnit());
+        existing.setDedicatedLaborHours(request.getDedicatedLaborHours());
+        existing.setDedicatedLaborRate(request.getDedicatedLaborRate());
         existing.getIngredients().clear();
 
         for (RecipeIngredientRequest lineRequest : request.getIngredients()) {
-            Ingredient ingredient = ingredientRepository.findById(lineRequest.getIngredientId())
-                    .orElseThrow(() -> new RuntimeException(
-                            "Ingredient not found: " + lineRequest.getIngredientId()));
-
             RecipeIngredient line = new RecipeIngredient();
-            line.setIngredient(ingredient);
             line.setAmount(lineRequest.getAmount());
             line.setAmountUnit(lineRequest.getAmountUnit());
-            line.setRecipe(existing);
+            line.setRecipe(existing); // in updateRecipe, use "existing" instead of "recipe"
 
-            existing.getIngredients().add(line);
+            if (lineRequest.getIngredientId() != null) {
+                Ingredient ingredient = ingredientRepository.findById(lineRequest.getIngredientId())
+                        .orElseThrow(() -> new RuntimeException(
+                                "Ingredient not found: " + lineRequest.getIngredientId()));
+                line.setIngredient(ingredient);
+            } else if (lineRequest.getSubRecipeId() != null) {
+                Recipe subRecipe = recipeRepository.findById(lineRequest.getSubRecipeId())
+                        .orElseThrow(() -> new RuntimeException(
+                                "Sub-recipe not found: " + lineRequest.getSubRecipeId()));
+                line.setSubRecipe(subRecipe);
+            } else {
+                throw new RuntimeException("Each recipe line must specify either an ingredientId or a subRecipeId.");
+            }
+
+            existing.getIngredients().add(line); // in updateRecipe, use "existing.getIngredients()" instead
         }
 
-        return recipeRepository.save(existing);
+        Recipe saved = recipeRepository.save(existing);
+        RecipeResponse response = new RecipeResponse();
+        response.setId(saved.getId());
+        response.setName(saved.getName());
+        response.setServings(saved.getServings());
+        response.setMenuPrice(saved.getMenuPrice());
+        return response;
     }
 
     @DeleteMapping("/{id}")
@@ -137,5 +180,45 @@ public class RecipeController {
             throw new RuntimeException("Recipe not found: " + id);
         }
         recipeRepository.deleteById(id);
+    }
+
+    @GetMapping("/{id}/detail")
+    public java.util.Map<String, Object> getRecipeDetail(@PathVariable Long id) {
+        Recipe recipe = recipeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Recipe not found: " + id));
+
+        java.util.List<java.util.Map<String, Object>> lines = recipe.getIngredients().stream()
+                .map(line -> {
+                    java.util.Map<String, Object> lineMap = new java.util.HashMap<>();
+                    if (line.getIngredient() != null) {
+                        lineMap.put("name", line.getIngredient().getName());
+                        lineMap.put("type", "Ingredient");
+                    } else {
+                        lineMap.put("name", line.getSubRecipe().getName());
+                        lineMap.put("type", "Sub-Recipe");
+                    }
+                    lineMap.put("amount", line.getAmount());
+                    lineMap.put("unit", line.getAmountUnit());
+                    lineMap.put("cost", costingService.costOfLine(line));
+                    return lineMap;
+                })
+                .collect(java.util.stream.Collectors.toList());
+
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("id", recipe.getId());
+        result.put("name", recipe.getName());
+        result.put("servings", recipe.getServings());
+        result.put("menuPrice", recipe.getMenuPrice());
+        result.put("laborCostPct", recipe.getLaborCostPct());
+        result.put("batchYieldAmount", recipe.getBatchYieldAmount());
+        result.put("batchYieldUnit", recipe.getBatchYieldUnit());
+        result.put("dedicatedLaborHours", recipe.getDedicatedLaborHours());
+        result.put("dedicatedLaborRate", recipe.getDedicatedLaborRate());
+        result.put("lines", lines);
+        result.put("totalCost", costingService.totalRecipeCost(recipe));
+        result.put("costPerServing", costingService.costPerServing(recipe));
+        result.put("foodCostPct", costingService.foodCostPercent(recipe));
+
+        return result;
     }
 }

@@ -30,4 +30,9 @@ public class PageController {
     public String dashboardPage() {
         return "dashboard";
     }
+
+    @GetMapping("/recipes/{id}/view")
+    public String recipeDetailPage() {
+        return "recipe-detail";
+    }
 }

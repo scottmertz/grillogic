@@ -9,10 +9,10 @@
 
 <div class="app-container">
     <div class="app-header">
-        <div class="app-logo">GRILLOGIC</div>
+        <img src="/img/logo.png" alt="GRILLOGIC" class="app-logo-img">
         <div class="app-nav">
-            <a href="/ingredients" style="color:white;">Ingredients</a>
-            <a href="/recipes" style="color:white;">+ New Recipe</a>
+            <a href="/ingredients">Ingredients</a>
+            <a href="/recipes">+ New Recipe</a>
             <span id="userEmail"></span>
             <button id="logoutBtn" class="btn-link">Log Out</button>
         </div>
@@ -85,7 +85,7 @@
             <td>${r.menuPrice ? '$' + r.menuPrice.toFixed(2) : '—'}</td>
             <td>$${r.costPerServing.toFixed(2)}</td>
             <td>${foodCostBadge(r.foodCostPct)}</td>
-            <td><a href="/recipes/${r.id}/cost-view">View</a></td>
+            <td><a href="/recipes/${r.id}/view">View</a></td>
         `;
             tbody.appendChild(row);
         });

@@ -69,6 +69,13 @@ public class CostingService {
         for (RecipeIngredient line : recipe.getIngredients()) {
             total += costOfLine(line);
         }
+
+        // Optional dedicated labor cost (e.g. a paid pit boss), only added
+        // if the operator has actually set both hours and a rate.
+        if (recipe.getDedicatedLaborHours() != null && recipe.getDedicatedLaborRate() != null) {
+            total += recipe.getDedicatedLaborHours() * recipe.getDedicatedLaborRate();
+        }
+
         return total;
     }
 
