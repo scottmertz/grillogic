@@ -11,4 +11,5 @@ public class ReportRow {
     private String statusLabel;
     private String statusClass; // "status-good" | "status-warn" | "status-bad"
     private String rowClass;    // "row-good" | "row-warn" | "row-bad"
+    private String suggestedPriceDisplay;
 }

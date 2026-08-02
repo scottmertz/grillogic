@@ -45,6 +45,10 @@
                                 th:text="${i} + '%'"
                                 th:selected="${i == 30}"></option>
                     </select>
+                    <div class="form-group" style="margin-top:16px;">
+                        <label for="instructions">Prep Instructions (optional — for kitchen prep cards)</label>
+                        <textarea id="instructions" rows="5" style="width:100%; padding:9px 10px; border:1.5px solid var(--rule); border-radius:4px; font-size:9.5pt; font-family:inherit;"></textarea>
+                    </div>
                 </div>
             </div>
 
@@ -308,6 +312,7 @@
             servings: parseInt(document.getElementById('servings').value),
             menuPrice: parseFloat(document.getElementById('menuPrice').value) || null,
             laborCostPct: parseFloat(document.getElementById('laborCostPct').value),
+            instructions: document.getElementById('instructions').value,
             batchYieldAmount: isBatch ? parseFloat(document.getElementById('batchYieldAmount').value) : null,
             batchYieldUnit: isBatch ? document.getElementById('batchYieldUnit').value : null,
             ingredients: recipeLines.map(line => {

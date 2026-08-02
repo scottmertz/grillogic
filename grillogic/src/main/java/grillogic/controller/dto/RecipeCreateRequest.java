@@ -15,4 +15,5 @@ public class RecipeCreateRequest {
     private grillogic.model.Unit batchYieldUnit;
     private Double dedicatedLaborHours;
     private Double dedicatedLaborRate;
+    private String instructions;
 }

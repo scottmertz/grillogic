@@ -257,4 +257,8 @@ Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0QGdyaWxsb2dpYy5jb20iL
 
 ### Generate the full audit report PDF
 GET http://localhost:8080/api/reports/full-audit
-Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0QGdyaWxsb2dpYy5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3ODU0Mjc3NDQsImV4cCI6MTc4NTUxNDE0NH0.GPyZWfCPs66vmFWus1glSptTevoRuydmql0BW8TT589xFuz-QI63obIAQCDudewM
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0QGdyaWxsb2dpYy5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3ODU1NTQzMDgsImV4cCI6MTc4NTY0MDcwOH0.rVaMnD4y0XMWW86siUMiP0ipxqTG1vyrk13PbvC9-mEM84aYKviRtKdlAWf2PLvs
+
+### Get a prep card PDF for Fish and Chips (id=14)
+GET http://localhost:8080/api/reports/prep-card/14
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJ0ZXN0QGdyaWxsb2dpYy5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3ODU2MzE1MTUsImV4cCI6MTc4NTcxNzkxNX0.8feKw-OSR7e0TS-dZjSXA7nBGzMPOcWgAx0zP4FsPG86Ne-tKptUnaK3J5_ghP5i

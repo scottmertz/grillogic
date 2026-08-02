@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.web.bind.annotation.PathVariable;
 
 @RestController
 @RequestMapping("/api/reports")
@@ -45,6 +46,23 @@ public class ReportController {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
         headers.setContentDispositionFormData("attachment", "GRILLOGIC_Full_Audit_Report.pdf");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
+    }
+
+    @GetMapping("/prep-card/{recipeId}")
+    public ResponseEntity<byte[]> getPrepCard(@PathVariable Long recipeId) {
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .orElseThrow(() -> new RuntimeException("Recipe not found: " + recipeId));
+
+        byte[] pdfBytes = pdfReportService.generatePrepCard(recipe);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment",
+                "GRILLOGIC_PrepCard_" + recipe.getName().replaceAll("\\s+", "_") + ".pdf");
 
         return ResponseEntity.ok()
                 .headers(headers)

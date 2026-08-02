@@ -113,6 +113,105 @@
             color: #8A8A88;
             text-align: center;
         }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .page-header img {
+            height: 50px;
+        }
+        .page-header h1 {
+            font-size: 15pt;
+            color: #343C3F;
+            margin-top: 10px;
+            letter-spacing: 0.5px;
+        }
+        .page-header .rule {
+            width: 60px;
+            height: 2px;
+            background-color: #C88536;
+            margin: 10px auto 0;
+        }
+
+        .stats-row {
+            display: table;
+            width: 100%;
+            margin-bottom: 26px;
+        }
+        .stats-box {
+            display: table-cell;
+            width: 33%;
+            text-align: center;
+            padding: 14px 8px;
+            border: 1px solid #DEDDD9;
+        }
+        .stats-box .num {
+            font-size: 20pt;
+            font-weight: bold;
+            color: #343C3F;
+        }
+        .stats-box.critical .num { color: #B23A1F; }
+        .stats-box.solid .num { color: #2D6A4F; }
+        .stats-box .label {
+            font-size: 8pt;
+            color: #8A8A88;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
+        .action-item {
+            border: 1px solid #DEDDD9;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+        }
+        .action-item .dish-name {
+            font-weight: bold;
+            color: #343C3F;
+            font-size: 10pt;
+        }
+        .action-item .action-detail {
+            font-size: 9pt;
+            color: #2A2A2A;
+            margin-top: 4px;
+        }
+        .action-item .price-note {
+            font-size: 9pt;
+            color: #9C6825;
+            font-weight: bold;
+        }
+
+        .step-row {
+            display: table;
+            width: 100%;
+            margin-bottom: 8px;
+            border: 1px solid #DEDDD9;
+        }
+        .step-num {
+            display: table-cell;
+            width: 36px;
+            background-color: #343C3F;
+            color: #FFFFFF;
+            font-weight: bold;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 11pt;
+        }
+        .step-text {
+            display: table-cell;
+            padding: 9px 12px;
+            font-size: 9.5pt;
+            vertical-align: middle;
+        }
+        .week-label {
+            background-color: #F0EFEC;
+            font-weight: bold;
+            color: #343C3F;
+            padding: 6px 10px;
+            font-size: 9.5pt;
+            margin: 18px 0 8px;
+        }
     </style>
 </head>
 <body>
@@ -137,7 +236,27 @@
 
 <div class="page-break"></div>
 
-<div class="sec-header">Entree Analysis Results</div>
+<div class="page-header">
+    <img src="http://localhost:8080/img/logo.png" />
+    <h1>ENTREE ANALYSIS RESULTS</h1>
+    <div class="rule"></div>
+</div>
+
+<div class="stats-row">
+    <div class="stats-box">
+        <div class="num" th:text="${totalDishes}">0</div>
+        <div class="label">Dishes Analyzed</div>
+    </div>
+    <div class="stats-box critical">
+        <div class="num" th:text="${criticalCount}">0</div>
+        <div class="label">Critical (35%+)</div>
+    </div>
+    <div class="stats-box solid">
+        <div class="num" th:text="${solidCount}">0</div>
+        <div class="label">Solid Margin (under 30%)</div>
+    </div>
+</div>
+
 <table class="results">
     <thead>
     <tr>
@@ -161,5 +280,54 @@
 
 <div class="footer">GRILLOGIC — Menu Profitability Audit | Confidential | getgrillogic.com</div>
 
+<div class="page-break"></div>
+
+<div class="page-header">
+    <img src="http://localhost:8080/img/logo.png" />
+    <h1>RECOVERY PLAN</h1>
+    <div class="rule"></div>
+</div>
+
+<div th:if="${actionRows.isEmpty()}">
+    <p style="text-align:center; color:#8A8A88; font-size:10pt; margin-top:40px;">
+        No dishes currently require repricing action. All items are within target range.
+    </p>
+</div>
+
+<div th:each="r : ${actionRows}" class="action-item">
+    <div class="dish-name" th:text="${r.name}">Dish Name</div>
+    <div class="action-detail">
+        Currently at <span th:text="${r.foodCostPctDisplay}">0%</span> food cost — above the 30% target.
+        Suggested menu price to reach target: <span class="price-note" th:text="${r.suggestedPriceDisplay}">$0.00</span>
+    </div>
+</div>
+
+<div class="footer">GRILLOGIC — Menu Profitability Audit | Confidential | getgrillogic.com</div>
+
+<div class="page-break"></div>
+
+<div class="page-header">
+    <img src="http://localhost:8080/img/logo.png" />
+    <h1>30-DAY IMPROVEMENT ROADMAP</h1>
+    <div class="rule"></div>
+</div>
+
+<div class="week-label">Week 1 — Immediate Pricing Action</div>
+<div class="step-row"><div class="step-num">1</div><div class="step-text">Reprice all CRITICAL-status dishes to the suggested target price listed in the Recovery Plan.</div></div>
+<div class="step-row"><div class="step-num">2</div><div class="step-text">Confirm current portion sizes match recipe specs — inconsistent portions are the most common hidden cost leak.</div></div>
+
+<div class="week-label">Week 2 — Vendor &amp; Portion Verification</div>
+<div class="step-row"><div class="step-num">3</div><div class="step-text">Cross-check current vendor invoices against the prices used in this audit to confirm accuracy.</div></div>
+<div class="step-row"><div class="step-num">4</div><div class="step-text">Retrain kitchen staff on correct portioning for any dish flagged HIGH or CRITICAL.</div></div>
+
+<div class="week-label">Week 3 — Menu Positioning</div>
+<div class="step-row"><div class="step-num">5</div><div class="step-text">Promote and feature SOLID-margin dishes more prominently on the menu and through staff recommendations.</div></div>
+<div class="step-row"><div class="step-num">6</div><div class="step-text">Evaluate whether any CRITICAL dish should be removed entirely rather than repriced.</div></div>
+
+<div class="week-label">Week 4 — Review &amp; Lock In</div>
+<div class="step-row"><div class="step-num">7</div><div class="step-text">Re-run a GRILLOGIC audit to confirm new pricing achieved target food cost percentages.</div></div>
+<div class="step-row"><div class="step-num">8</div><div class="step-text">Schedule ongoing monthly check-ins to catch ingredient price shifts before they erode margin again.</div></div>
+
+<div class="footer">GRILLOGIC — Menu Profitability Audit | Confidential | getgrillogic.com</div>
 </body>
 </html>

@@ -55,4 +55,7 @@ public class Recipe {
 
     @Column(name = "dedicated_labor_rate")
     private Double dedicatedLaborRate;
+
+    @Column(columnDefinition = "TEXT")
+    private String instructions;
 }

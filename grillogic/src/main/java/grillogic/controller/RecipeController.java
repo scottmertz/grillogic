@@ -51,6 +51,7 @@ public class RecipeController {
         recipe.setBatchYieldUnit(request.getBatchYieldUnit());
         recipe.setDedicatedLaborHours(request.getDedicatedLaborHours());
         recipe.setDedicatedLaborRate(request.getDedicatedLaborRate());
+        recipe.setInstructions(request.getInstructions());
 
         for (RecipeIngredientRequest lineRequest : request.getIngredients()) {
             RecipeIngredient line = new RecipeIngredient();
@@ -141,6 +142,7 @@ public class RecipeController {
         existing.setDedicatedLaborHours(request.getDedicatedLaborHours());
         existing.setDedicatedLaborRate(request.getDedicatedLaborRate());
         existing.getIngredients().clear();
+        existing.setInstructions(request.getInstructions());
 
         for (RecipeIngredientRequest lineRequest : request.getIngredients()) {
             RecipeIngredient line = new RecipeIngredient();

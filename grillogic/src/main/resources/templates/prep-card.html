@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <style>
+        @page { size: letter; margin: 0.6in 0.65in; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #2A2A2A; }
+
+        .header {
+            display: table;
+            width: 100%;
+            border-bottom: 3px solid #C88536;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+        .header-logo {
+            display: table-cell;
+            width: 70px;
+            vertical-align: middle;
+        }
+        .header-logo img { height: 60px; }
+        .header-title {
+            display: table-cell;
+            vertical-align: middle;
+            padding-left: 16px;
+        }
+        .header-title .dish-name {
+            font-size: 20pt;
+            font-weight: bold;
+            color: #343C3F;
+        }
+        .header-title .subtitle {
+            font-size: 9pt;
+            color: #8A8A88;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        .meta-row {
+            display: table;
+            width: 100%;
+            margin-bottom: 22px;
+        }
+        .meta-box {
+            display: table-cell;
+            width: 50%;
+            padding: 10px 14px;
+            border: 1px solid #DEDDD9;
+            text-align: center;
+        }
+        .meta-box .val {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #343C3F;
+        }
+        .meta-box .label {
+            font-size: 8pt;
+            color: #8A8A88;
+            text-transform: uppercase;
+            margin-top: 3px;
+        }
+
+        .section-label {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #343C3F;
+            border-bottom: 1.5px solid #343C3F;
+            padding-bottom: 4px;
+            margin-bottom: 10px;
+            margin-top: 20px;
+        }
+
+        table.ingredients {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10pt;
+            margin-bottom: 6px;
+        }
+        table.ingredients td {
+            padding: 7px 8px;
+            border-bottom: 0.5px solid #DEDDD9;
+        }
+        table.ingredients td.amount-col {
+            width: 100px;
+            font-weight: bold;
+            color: #343C3F;
+        }
+
+        .instructions {
+            font-size: 10pt;
+            line-height: 1.8;
+            white-space: pre-line;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 6px;
+            border-top: 1px solid #DEDDD9;
+            font-size: 7.5pt;
+            color: #8A8A88;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-logo"><img src="http://localhost:8080/img/logo.png" /></div>
+    <div class="header-title">
+        <div class="dish-name" th:text="${recipeName}">Dish Name</div>
+        <div class="subtitle">Kitchen Prep Card</div>
+    </div>
+</div>
+
+<div class="meta-row">
+    <div class="meta-box">
+        <div class="val" th:text="${servings}">0</div>
+        <div class="label">Servings / Yield</div>
+    </div>
+    <div class="meta-box">
+        <div class="val" th:text="${lineCount}">0</div>
+        <div class="label">Ingredients</div>
+    </div>
+</div>
+
+<div class="section-label">Ingredients</div>
+<table class="ingredients">
+    <tr th:each="line : ${lines}">
+        <td class="amount-col" th:text="${line.amount} + ' ' + ${line.unit}">1 oz</td>
+        <td th:text="${line.name}">Ingredient</td>
+    </tr>
+</table>
+
+<div class="section-label">Prep Instructions</div>
+<div class="instructions" th:text="${instructions}">No instructions provided.</div>
+
+<div class="footer">GRILLOGIC — Kitchen Prep Card | Not for guest distribution</div>
+
+</body>
+</html>
