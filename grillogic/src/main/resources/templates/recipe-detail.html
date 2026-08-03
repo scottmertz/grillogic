@@ -21,6 +21,7 @@
 
     <div class="app-content">
         <a href="/recipes/list" style="font-size:9pt; color:var(--mgray);">&larr; Back to Recipes</a>
+        <a href="#" id="editLink" style="float:right; font-size:9pt; font-weight:700;">Edit Recipe</a>
         <h1 id="recipeName" style="margin-top:8px;"></h1>
         <div id="batchBadge"></div>
 
@@ -55,9 +56,9 @@
         window.location.href = '/login';
     });
 
-    // Pull the recipe id out of the URL path, e.g. /recipes/6/view -> "6"
     const pathParts = window.location.pathname.split('/');
     const recipeId = pathParts[2];
+    document.getElementById('editLink').href = '/recipes/' + recipeId + '/edit';
 
     function foodCostBadge(pct) {
         if (pct === null || pct === undefined) return '<span style="color:#888;">N/A</span>';
@@ -89,7 +90,7 @@
 
         if (r.batchYieldAmount && r.batchYieldUnit) {
             document.getElementById('batchBadge').innerHTML =
-                `<span style="background:var(--light-green); color:var(--dark-green); padding:3px 10px; border-radius:12px; font-size:8.5pt; font-weight:700;">
+                `<span style="background:var(--gold-light); color:var(--charcoal); padding:3px 10px; border-radius:12px; font-size:8.5pt; font-weight:700;">
                 BATCH — yields ${r.batchYieldAmount} ${r.batchYieldUnit}
             </span>`;
         }
@@ -102,10 +103,10 @@
 
         document.getElementById('overviewStats').innerHTML = `
         <div style="display:flex; gap:32px; font-size:10pt; margin-bottom:12px;">
-            <div><b style="font-size:18pt; color:#1A3C2A;">$${r.totalCost.toFixed(2)}</b><br>Total Cost</div>
-            <div><b style="font-size:18pt; color:#1A3C2A;">$${r.costPerServing.toFixed(2)}</b><br>Cost / Serving</div>
+            <div><b style="font-size:18pt; color:var(--charcoal);">$${r.totalCost.toFixed(2)}</b><br>Total Cost</div>
+            <div><b style="font-size:18pt; color:var(--charcoal);">$${r.costPerServing.toFixed(2)}</b><br>Cost / Serving</div>
             <div><b style="font-size:18pt;">${foodCostBadge(r.foodCostPct)}</b><br>Food Cost %</div>
-            <div><b style="font-size:18pt; color:#1A3C2A;">${r.menuPrice ? '$' + r.menuPrice.toFixed(2) : '—'}</b><br>Menu Price</div>
+            <div><b style="font-size:18pt; color:var(--charcoal);">${r.menuPrice ? '$' + r.menuPrice.toFixed(2) : '—'}</b><br>Menu Price</div>
         </div>
         ${laborLine}
     `;

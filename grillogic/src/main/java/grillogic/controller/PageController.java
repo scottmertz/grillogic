@@ -35,4 +35,9 @@ public class PageController {
     public String recipeDetailPage() {
         return "recipe-detail";
     }
+
+    @GetMapping("/recipes/{id}/edit")
+    public String recipeEditPage() {
+        return "recipe-edit";
+    }
 }
