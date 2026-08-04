@@ -34,6 +34,7 @@ public class SecurityConfig {
                                 "/dashboard",
                                 "/admin",
                                 "/admin/clients/*",
+                                "/account",
                                 "/css/**",
                                 "/img/**"
                         ).permitAll()

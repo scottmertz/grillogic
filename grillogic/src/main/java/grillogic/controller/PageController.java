@@ -50,4 +50,9 @@ public class PageController {
     public String adminClientDetailPage() {
         return "admin-client-detail";
     }
+
+    @GetMapping("/account")
+    public String accountPage() {
+        return "account";
+    }
 }
