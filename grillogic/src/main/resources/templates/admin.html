@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>GRILLOGIC — Admin Panel</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-container">
+    <div class="app-header">
+        <img src="/img/logo.png" alt="GRILLOGIC" class="app-logo-img">
+        <div class="app-nav">
+            <a href="/ingredients">Ingredients</a>
+            <a href="/recipes">+ New Recipe</a>
+            <a href="/recipes/list">All Recipes</a>
+            <span id="userEmail"></span>
+            <button id="logoutBtn" class="btn-link">Log Out</button>
+        </div>
+    </div>
+
+    <div class="app-content">
+        <h1>Admin Panel</h1>
+
+        <div class="card">
+            <h2>All Clients</h2>
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>Business</th>
+                    <th>Email</th>
+                    <th>Tier</th>
+                    <th>Subscription</th>
+                    <th>Recipes</th>
+                    <th>Ingredients</th>
+                </tr>
+                </thead>
+                <tbody id="clientsBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('grillogic_token');
+    if (!token) window.location.href = '/login';
+    document.getElementById('userEmail').textContent = localStorage.getItem('grillogic_email') || '';
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+        localStorage.clear();
+        window.location.href = '/login';
+    });
+
+    function tierBadge(tier) {
+        const colors = {
+            'PREMIUM': 'var(--gold-dark)',
+            'STANDARD': 'var(--charcoal)',
+            'AUDIT_ONLY': 'var(--mgray)',
+            'NONE': 'var(--mgray)'
+        };
+        const color = colors[tier] || 'var(--mgray)';
+        return `<b style="color:${color};">${tier || 'NONE'}</b>`;
+    }
+
+    function subBadge(active) {
+        return active
+            ? '<span style="color:var(--status-good); font-weight:700;">Active</span>'
+            : '<span style="color:var(--mgray);">Inactive</span>';
+    }
+
+    async function loadClients() {
+        const response = await fetch('/api/admin/clients', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+
+        if (response.status === 401 || response.status === 403) {
+            localStorage.clear();
+            window.location.href = '/login';
+            return;
+        }
+        if (!response.ok) {
+            document.getElementById('clientsBody').innerHTML =
+                '<tr><td colspan="6" style="text-align:center; color:var(--status-bad);">Access denied — admin only.</td></tr>';
+            return;
+        }
+
+        const clients = await response.json();
+        const tbody = document.getElementById('clientsBody');
+        tbody.innerHTML = clients.map(c => `
+        <tr>
+            <td><a href="/admin/clients/${c.userId}" style="color:var(--charcoal); font-weight:700; text-decoration:none;">${c.businessName || '(no business name)'}</a></td>
+            <td>${c.email}</td>
+            <td>${tierBadge(c.tier)}</td>
+            <td>${subBadge(c.subscriptionActive)}</td>
+            <td>${c.recipeCount}</td>
+            <td>${c.ingredientCount}</td>
+        </tr>
+    `).join('');
+    }
+
+    loadClients();
+</script>
+
+</body>
+</html>

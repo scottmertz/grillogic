@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>GRILLOGIC — Client Detail</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-container">
+    <div class="app-header">
+        <img src="/img/logo.png" alt="GRILLOGIC" class="app-logo-img">
+        <div class="app-nav">
+            <a href="/admin">Admin Panel</a>
+            <a href="/ingredients">Ingredients</a>
+            <a href="/recipes/list">All Recipes</a>
+            <span id="userEmail"></span>
+            <button id="logoutBtn" class="btn-link">Log Out</button>
+        </div>
+    </div>
+
+    <div class="app-content">
+        <a href="/admin" style="font-size:9pt; color:var(--mgray);">&larr; Back to Admin Panel</a>
+        <h1 id="businessName" style="margin-top:8px;"></h1>
+        <div id="emailLine" style="color:var(--mgray); font-size:10pt; margin-bottom:20px;"></div>
+
+        <div class="card">
+            <h2>Subscription</h2>
+            <div class="inline-form">
+                <div class="form-group">
+                    <label for="tierSelect">Tier</label>
+                    <select id="tierSelect">
+                        <option value="NONE">None</option>
+                        <option value="AUDIT_ONLY">Audit Only</option>
+                        <option value="STANDARD">Standard</option>
+                        <option value="PREMIUM">Premium</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="subActiveSelect">Subscription Status</label>
+                    <select id="subActiveSelect">
+                        <option value="true">Active</option>
+                        <option value="false">Inactive</option>
+                    </select>
+                </div>
+                <button type="button" id="saveClientBtn" class="btn-primary">Save Changes</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Recipes (<span id="recipeCount">0</span>)</h2>
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Servings</th>
+                    <th>Menu Price</th>
+                    <th>Cost / Serving</th>
+                    <th>Food Cost %</th>
+                </tr>
+                </thead>
+                <tbody id="recipesBody"></tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>Ingredients (<span id="ingredientCount">0</span>)</h2>
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Purchase Price</th>
+                    <th>Unit</th>
+                </tr>
+                </thead>
+                <tbody id="ingredientsBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('grillogic_token');
+    if (!token) window.location.href = '/login';
+    document.getElementById('userEmail').textContent = localStorage.getItem('grillogic_email') || '';
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+        localStorage.clear();
+        window.location.href = '/login';
+    });
+
+    const pathParts = window.location.pathname.split('/');
+    const clientId = pathParts[3];
+
+    function foodCostBadge(pct) {
+        if (pct === null || pct === undefined) return '<span style="color:#888;">N/A</span>';
+        const percent = (pct * 100).toFixed(1) + '%';
+        let color = 'var(--status-good)';
+        if (pct * 100 >= 35) color = 'var(--status-bad)';
+        else if (pct * 100 >= 30) color = 'var(--status-warn)';
+        return `<b style="color:${color};">${percent}</b>`;
+    }
+
+    async function loadClientDetail() {
+        const response = await fetch('/api/admin/clients/' + clientId, {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+
+        if (response.status === 401 || response.status === 403) {
+            localStorage.clear();
+            window.location.href = '/login';
+            return;
+        }
+        if (!response.ok) {
+            document.getElementById('businessName').textContent = 'Client not found';
+            return;
+        }
+
+        const c = await response.json();
+
+        document.getElementById('businessName').textContent = c.businessName || '(no business name)';
+        document.getElementById('emailLine').textContent = c.email;
+        document.getElementById('tierSelect').value = c.tier || 'NONE';
+        document.getElementById('subActiveSelect').value = c.subscriptionActive ? 'true' : 'false';
+
+        document.getElementById('recipeCount').textContent = c.recipes.length;
+        document.getElementById('recipesBody').innerHTML = c.recipes.map(r => `
+        <tr>
+            <td>${r.name}</td>
+            <td>${r.servings}</td>
+            <td>${r.menuPrice ? '$' + r.menuPrice.toFixed(2) : '—'}</td>
+            <td>$${r.costPerServing.toFixed(2)}</td>
+            <td>${foodCostBadge(r.foodCostPct)}</td>
+        </tr>
+    `).join('');
+
+        document.getElementById('ingredientCount').textContent = c.ingredients.length;
+        document.getElementById('ingredientsBody').innerHTML = c.ingredients.map(i => `
+        <tr>
+            <td>${i.name}</td>
+            <td>${i.category}</td>
+            <td>$${i.purchasePrice.toFixed(2)}</td>
+            <td>${i.purchaseUnit}</td>
+        </tr>
+    `).join('');
+    }
+
+    document.getElementById('saveClientBtn').addEventListener('click', async function() {
+        const payload = {
+            tier: document.getElementById('tierSelect').value,
+            subscriptionActive: document.getElementById('subActiveSelect').value === 'true'
+        };
+
+        const response = await fetch('/api/admin/clients/' + clientId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            alert('Client updated!');
+        } else {
+            alert('Failed to update client.');
+        }
+    });
+
+    loadClientDetail();
+</script>
+
+</body>
+</html>

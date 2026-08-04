@@ -53,14 +53,12 @@
 
             const data = await response.json();
 
-            // Store the token in the browser so future page/API requests can use it
             localStorage.setItem('grillogic_token', data.token);
             localStorage.setItem('grillogic_email', data.email);
             localStorage.setItem('grillogic_role', data.role);
 
-            // Redirect to the ingredients page (next thing we'll build)
             if (data.role === 'ADMIN') {
-                window.location.href = '/ingredients';
+                window.location.href = '/admin';
             } else {
                 window.location.href = '/dashboard';
             }

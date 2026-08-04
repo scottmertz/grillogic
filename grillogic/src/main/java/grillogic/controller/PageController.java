@@ -8,7 +8,7 @@ public class PageController {
 
     @GetMapping("/login")
     public String loginPage() {
-        return "login"; // Thymeleaf looks for templates/login.html
+        return "login";
     }
 
     @GetMapping("/ingredients")
@@ -39,5 +39,15 @@ public class PageController {
     @GetMapping("/recipes/{id}/edit")
     public String recipeEditPage() {
         return "recipe-edit";
+    }
+
+    @GetMapping("/admin")
+    public String adminPage() {
+        return "admin";
+    }
+
+    @GetMapping("/admin/clients/{id}")
+    public String adminClientDetailPage() {
+        return "admin-client-detail";
     }
 }
