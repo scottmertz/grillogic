@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>GRILLOGIC — Vendor Pricing</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-container">
+    <div class="app-header">
+        <img src="/img/logo.png" alt="GRILLOGIC" class="app-logo-img">
+        <div class="app-nav">
+            <a href="/ingredients">Ingredients</a>
+            <a href="/vendors">Vendors</a>
+            <a href="/recipes/list">All Recipes</a>
+            <a href="/waste">Waste Tracking</a>
+            <span id="userEmail"></span>
+            <button id="logoutBtn" class="btn-link">Log Out</button>
+        </div>
+    </div>
+
+    <div class="app-content">
+        <a href="/ingredients" style="font-size:9pt; color:var(--mgray);">&larr; Back to Ingredients</a>
+        <h1 id="ingredientName" style="margin-top:8px;">Vendor Pricing</h1>
+        <div id="baselineNote" style="color:var(--mgray); font-size:10pt; margin-bottom:20px;"></div>
+
+        <div class="card">
+            <h2>Vendor Quotes</h2>
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>Vendor</th>
+                    <th>Price</th>
+                    <th>Amount</th>
+                    <th>Unit</th>
+                    <th>Cost / Unit</th>
+                    <th>Previous Price</th>
+                    <th>Last Updated</th>
+                    <th>Preferred</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody id="quotesBody"></tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>Add a Vendor Quote</h2>
+            <form id="addQuoteForm" class="inline-form">
+                <div class="form-group">
+                    <label for="vendorSelect">Vendor</label>
+                    <select id="vendorSelect" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="quotePrice">Price ($)</label>
+                    <input type="number" id="quotePrice" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="quoteAmount">Amount</label>
+                    <input type="number" id="quoteAmount" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="quoteUnit">Unit</label>
+                    <select id="quoteUnit" required>
+                        <option value="G">G (grams)</option>
+                        <option value="KG">KG (kilograms)</option>
+                        <option value="OZ">OZ (ounces)</option>
+                        <option value="LB">LB (pounds)</option>
+                        <option value="ML">ML (milliliters)</option>
+                        <option value="L">L (liters)</option>
+                        <option value="FL_OZ">FL OZ (fluid ounces)</option>
+                        <option value="CUP">CUP</option>
+                        <option value="TSP">TSP (teaspoon)</option>
+                        <option value="TBSP">TBSP (tablespoon)</option>
+                        <option value="EACH">EACH</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-primary">Add Quote</button>
+            </form>
+            <p style="font-size:8.5pt; color:var(--mgray); margin-top:10px;">
+                No vendors yet? <a href="/vendors">Add one here</a> first, then come back.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('grillogic_token');
+    if (!token) window.location.href = '/login';
+    document.getElementById('userEmail').textContent = localStorage.getItem('grillogic_email') || '';
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+        localStorage.clear();
+        window.location.href = '/login';
+    });
+
+    const pathParts = window.location.pathname.split('/');
+    const ingredientId = pathParts[2];
+
+    async function authFetch(url, options) {
+        const opts = options || {};
+        opts.headers = Object.assign({}, opts.headers, { 'Authorization': 'Bearer ' + token });
+        const response = await fetch(url, opts);
+        if (response.status === 401 || response.status === 403) {
+            localStorage.clear();
+            window.location.href = '/login';
+            return null;
+        }
+        return response;
+    }
+
+    async function loadIngredient() {
+        const response = await authFetch('/api/ingredients/' + ingredientId);
+        if (!response) return;
+        const ing = await response.json();
+        document.getElementById('ingredientName').textContent = 'Vendor Pricing — ' + ing.name;
+        document.getElementById('baselineNote').textContent =
+            'Baseline on file: $' + ing.purchasePrice.toFixed(2) + ' / ' + ing.purchaseAmount + ' ' + ing.purchaseUnit +
+            ' (used automatically until a vendor quote below is marked Preferred)';
+    }
+
+    async function loadVendorsIntoSelect() {
+        const response = await authFetch('/api/vendors');
+        if (!response) return;
+        const vendors = await response.json();
+        const select = document.getElementById('vendorSelect');
+        select.innerHTML = '';
+        vendors.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v.id;
+            opt.textContent = v.name;
+            select.appendChild(opt);
+        });
+    }
+
+    async function loadQuotes() {
+        const response = await authFetch('/api/ingredients/' + ingredientId + '/vendor-prices');
+        if (!response) return;
+        const quotes = await response.json();
+
+        // Find the cheapest cost-per-unit among quotes that share the same unit —
+        // comparing across different units (e.g. LB vs OZ) isn't apples to apples here.
+        const costPerUnit = q => q.purchasePrice / q.purchaseAmount;
+        const cheapestByUnit = {};
+        quotes.forEach(q => {
+            const cpu = costPerUnit(q);
+            if (!(q.purchaseUnit in cheapestByUnit) || cpu < cheapestByUnit[q.purchaseUnit]) {
+                cheapestByUnit[q.purchaseUnit] = cpu;
+            }
+        });
+
+        const tbody = document.getElementById('quotesBody');
+        if (quotes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--mgray);">No vendor quotes yet — add one below.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = quotes.map(q => {
+            const cpu = costPerUnit(q);
+            const isCheapest = cpu === cheapestByUnit[q.purchaseUnit];
+            const cpuDisplay = '$' + cpu.toFixed(4) + ' / ' + q.purchaseUnit + (isCheapest ? ' 🟢 CHEAPEST' : '');
+            const prevDisplay = q.previousPrice !== null && q.previousPrice !== undefined
+                ? '$' + q.previousPrice.toFixed(2) : '—';
+            const preferredCell = q.isPreferred
+                ? '<b style="color:var(--status-good, #2D6A4F);">✓ Preferred</b>'
+                : '<button type="button" class="btn-link" onclick="preferQuote(' + q.id + ')">Make Preferred</button>';
+
+            return `
+            <tr>
+                <td>${q.vendorName}</td>
+                <td>$${q.purchasePrice.toFixed(2)}</td>
+                <td>${q.purchaseAmount}</td>
+                <td>${q.purchaseUnit}</td>
+                <td>${cpuDisplay}</td>
+                <td>${prevDisplay}</td>
+                <td>${q.lastUpdated || '—'}</td>
+                <td>${preferredCell}</td>
+                <td><button type="button" class="btn-link" onclick="deleteQuote(${q.id})">Delete</button></td>
+            </tr>
+        `;
+        }).join('');
+    }
+
+    async function preferQuote(vendorPriceId) {
+        const response = await authFetch('/api/ingredients/' + ingredientId + '/vendor-prices/' + vendorPriceId + '/prefer', {
+            method: 'PUT'
+        });
+        if (response && response.ok) {
+            loadQuotes();
+        } else {
+            alert('Failed to set preferred vendor.');
+        }
+    }
+
+    async function deleteQuote(vendorPriceId) {
+        if (!confirm('Delete this vendor quote?')) return;
+        const response = await authFetch('/api/ingredients/' + ingredientId + '/vendor-prices/' + vendorPriceId, {
+            method: 'DELETE'
+        });
+        if (response && response.ok) {
+            loadQuotes();
+        } else {
+            alert('Failed to delete quote.');
+        }
+    }
+
+    document.getElementById('addQuoteForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const payload = {
+            vendorId: parseInt(document.getElementById('vendorSelect').value, 10),
+            purchasePrice: parseFloat(document.getElementById('quotePrice').value),
+            purchaseAmount: parseFloat(document.getElementById('quoteAmount').value),
+            purchaseUnit: document.getElementById('quoteUnit').value
+        };
+
+        const response = await authFetch('/api/ingredients/' + ingredientId + '/vendor-prices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (response && response.ok) {
+            document.getElementById('addQuoteForm').reset();
+            loadQuotes();
+        } else {
+            alert('Failed to add vendor quote. Make sure you have at least one vendor added first.');
+        }
+    });
+
+    loadIngredient();
+    loadVendorsIntoSelect();
+    loadQuotes();
+</script>
+
+</body>
+</html>

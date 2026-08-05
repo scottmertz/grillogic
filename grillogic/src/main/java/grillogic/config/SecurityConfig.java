@@ -27,6 +27,7 @@ public class SecurityConfig {
                                 "/api/stripe/webhook",
                                 "/login",
                                 "/ingredients",
+                                "/ingredients/*/vendor-pricing",
                                 "/vendors",
                                 "/recipes",
                                 "/recipes/list",

@@ -28,6 +28,26 @@
             <div id="summaryStats"></div>
         </div>
 
+        <div class="card" id="priceAlertsCard" style="display:none;">
+            <h2>Price Alerts</h2>
+            <p style="font-size:9.5pt; color:var(--mgray); margin-bottom:12px;">
+                Vendor quotes that changed 10% or more since their last update.
+            </p>
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>Ingredient</th>
+                    <th>Vendor</th>
+                    <th>Previous Price</th>
+                    <th>Current Price</th>
+                    <th>Change</th>
+                    <th>Last Updated</th>
+                </tr>
+                </thead>
+                <tbody id="priceAlertsBody"></tbody>
+            </table>
+        </div>
+
         <div class="card">
             <h2>Reports</h2>
             <p style="font-size:9.5pt; color:var(--mgray); margin-bottom:12px;">
@@ -96,6 +116,35 @@
             return null;
         }
         return response.json();
+    }
+
+    async function loadPriceAlerts() {
+        const alerts = await authFetch('/api/price-alerts');
+        if (alerts === null) return;
+
+        const card = document.getElementById('priceAlertsCard');
+        if (alerts.length === 0) {
+            card.style.display = 'none';
+            return;
+        }
+
+        card.style.display = 'block';
+        document.getElementById('priceAlertsBody').innerHTML = alerts.map(a => {
+            const up = a.percentChange > 0;
+            const color = up ? '#CC3300' : '#2D6A4F';
+            const arrow = up ? '▲' : '▼';
+            const changeDisplay = arrow + ' ' + Math.abs(a.percentChange).toFixed(1) + '%';
+            return `
+            <tr>
+                <td>${a.ingredientName}</td>
+                <td>${a.vendorName}</td>
+                <td>$${a.previousPrice.toFixed(2)}</td>
+                <td>$${a.currentPrice.toFixed(2)}</td>
+                <td><b style="color:${color};">${changeDisplay}</b></td>
+                <td>${a.lastUpdated || '—'}</td>
+            </tr>
+        `;
+        }).join('');
     }
 
     async function downloadReport() {
@@ -192,6 +241,7 @@
         }
     }
 
+    loadPriceAlerts();
     loadDashboard();
 </script>
 

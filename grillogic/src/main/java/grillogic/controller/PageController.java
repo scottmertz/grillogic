@@ -16,6 +16,11 @@ public class PageController {
         return "ingredients";
     }
 
+    @GetMapping("/ingredients/{id}/vendor-pricing")
+    public String ingredientVendorPricingPage() {
+        return "ingredient-vendor-pricing.html";
+    }
+
     @GetMapping("/vendors")
     public String vendorsPage() {
         return "vendors";
@@ -59,5 +64,10 @@ public class PageController {
     @GetMapping("/account")
     public String accountPage() {
         return "account";
+    }
+
+    @GetMapping("/waste")
+    public String wastePage() {
+        return "waste";
     }
 }

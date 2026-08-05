@@ -1,23 +1,29 @@
 package grillogic.service;
 
 import grillogic.model.Ingredient;
+import grillogic.model.IngredientVendorPrice;
 import grillogic.model.Recipe;
 import grillogic.model.RecipeIngredient;
 import grillogic.model.Unit;
+import grillogic.repository.IngredientVendorPriceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
 
 @Service
 public class CostingService {
 
     private final UnitConverter unitConverter;
+    private final IngredientVendorPriceRepository ingredientVendorPriceRepository;
 
     // Constructor injection — Spring sees this constructor and automatically
-    // hands us a UnitConverter instance. This is the "dependency injection"
-    // I mentioned back when we built UnitConverter — here it is in action.
+    // hands us a UnitConverter and IngredientVendorPriceRepository instance.
     @Autowired
-    public CostingService(UnitConverter unitConverter) {
+    public CostingService(UnitConverter unitConverter,
+                          IngredientVendorPriceRepository ingredientVendorPriceRepository) {
         this.unitConverter = unitConverter;
+        this.ingredientVendorPriceRepository = ingredientVendorPriceRepository;
     }
 
     /**
@@ -36,8 +42,25 @@ public class CostingService {
 
     private double costFromIngredient(RecipeIngredient line) {
         Ingredient ingredient = line.getIngredient();
-        double costPerPurchaseUnit = ingredient.getPurchasePrice() / ingredient.getPurchaseAmount();
-        double amountInPurchaseUnit = unitConverter.convert(line.getAmount(), line.getAmountUnit(), ingredient.getPurchaseUnit());
+
+        // Default to the ingredient's own flat purchase data.
+        double purchasePrice = ingredient.getPurchasePrice();
+        double purchaseAmount = ingredient.getPurchaseAmount();
+        Unit purchaseUnit = ingredient.getPurchaseUnit();
+
+        // If a preferred vendor quote exists for this ingredient, that quote wins —
+        // this is what makes costing "vendor-aware" instead of a single flat price.
+        Optional<IngredientVendorPrice> preferred =
+                ingredientVendorPriceRepository.findByIngredientIdAndIsPreferredTrue(ingredient.getId());
+        if (preferred.isPresent()) {
+            IngredientVendorPrice ivp = preferred.get();
+            purchasePrice = ivp.getPurchasePrice();
+            purchaseAmount = ivp.getPurchaseAmount();
+            purchaseUnit = ivp.getPurchaseUnit();
+        }
+
+        double costPerPurchaseUnit = purchasePrice / purchaseAmount;
+        double amountInPurchaseUnit = unitConverter.convert(line.getAmount(), line.getAmountUnit(), purchaseUnit);
         double rawCost = amountInPurchaseUnit * costPerPurchaseUnit;
 
         Double yieldPct = ingredient.getYieldPct();

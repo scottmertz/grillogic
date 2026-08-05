@@ -96,6 +96,7 @@
                     <th>Purchase Amount</th>
                     <th>Unit</th>
                     <th>Yield %</th>
+                    <th>Vendor Pricing</th>
                     <th>Substitutes</th>
                 </tr>
                 </thead>
@@ -170,6 +171,7 @@
             <td>${ing.purchaseAmount}</td>
             <td>${ing.purchaseUnit}</td>
             <td>${(ing.yieldPct * 100).toFixed(0)}%</td>
+            <td><a href="/ingredients/${ing.id}/vendor-pricing">Compare Vendors</a></td>
             <td><button type="button" class="btn-link" onclick="openSubModal(${ing.id}, '${ing.name.replace(/'/g, "\\'")}')">Manage</button></td>
         `;
             tbody.appendChild(row);
