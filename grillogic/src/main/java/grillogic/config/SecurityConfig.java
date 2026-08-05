@@ -27,6 +27,7 @@ public class SecurityConfig {
                                 "/api/stripe/webhook",
                                 "/login",
                                 "/ingredients",
+                                "/vendors",
                                 "/recipes",
                                 "/recipes/list",
                                 "/recipes/*/view",
@@ -35,7 +36,6 @@ public class SecurityConfig {
                                 "/admin",
                                 "/admin/clients/*",
                                 "/account",
-                                "/waste",
                                 "/css/**",
                                 "/img/**"
                         ).permitAll()
