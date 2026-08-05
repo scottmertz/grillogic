@@ -28,7 +28,7 @@ public class PdfReportService {
         this.costingService = costingService;
     }
 
-    public byte[] generateFullAuditReport(List<Recipe> recipes) {
+    public byte[] generateFullAuditReport(List<Recipe> recipes, String tier) {
         List<ReportRow> rows = recipes.stream()
                 .map(this::toReportRow)
                 .collect(Collectors.toList());
@@ -36,6 +36,11 @@ public class PdfReportService {
         long criticalCount = rows.stream().filter(r -> "status-bad".equals(r.getStatusClass())).count();
         long highCount = rows.stream().filter(r -> "status-warn".equals(r.getStatusClass())).count();
         long solidCount = rows.stream().filter(r -> "status-good".equals(r.getStatusClass())).count();
+
+        // Tier gating: Recovery Plan requires STANDARD or PREMIUM.
+        // 30-Day Roadmap requires PREMIUM only.
+        boolean showRecoveryPlan = "STANDARD".equals(tier) || "PREMIUM".equals(tier);
+        boolean showRoadmap = "PREMIUM".equals(tier);
 
         Context context = new Context();
         context.setVariable("recipes", rows);
@@ -48,6 +53,8 @@ public class PdfReportService {
         context.setVariable("actionRows", rows.stream()
                 .filter(r -> r.getSuggestedPriceDisplay() != null)
                 .collect(Collectors.toList()));
+        context.setVariable("showRecoveryPlan", showRecoveryPlan);
+        context.setVariable("showRoadmap", showRoadmap);
 
         String html = templateEngine.process("audit-report", context);
 

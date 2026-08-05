@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>GRILLOGIC — Waste Tracking</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-container">
+    <div class="app-header">
+        <img src="/img/logo.png" alt="GRILLOGIC" class="app-logo-img">
+        <div class="app-nav">
+            <a href="/ingredients">Ingredients</a>
+            <a href="/recipes">+ New Recipe</a>
+            <a href="/recipes/list">All Recipes</a>
+            <a href="/waste">Waste Tracking</a>
+            <span id="userEmail"></span>
+            <button id="logoutBtn" class="btn-link">Log Out</button>
+        </div>
+    </div>
+
+    <div class="app-content">
+        <h1>Waste Tracking</h1>
+
+        <div class="card">
+            <h2>Log Waste</h2>
+            <div class="inline-form" style="margin-bottom:16px;">
+                <div class="form-group" style="flex:2;">
+                    <label for="itemSearch">Ingredient or Sub-Recipe</label>
+                    <input type="text" id="itemSearch" list="itemOptions" placeholder="Start typing...">
+                    <datalist id="itemOptions"></datalist>
+                </div>
+                <div class="form-group">
+                    <label for="amount">Amount</label>
+                    <input type="number" id="amount" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="unit">Unit</label>
+                    <select id="unit">
+                        <option value="G">G</option><option value="KG">KG</option>
+                        <option value="OZ">OZ</option><option value="LB">LB</option>
+                        <option value="ML">ML</option><option value="L">L</option>
+                        <option value="FL_OZ">FL OZ</option><option value="CUP">CUP</option>
+                        <option value="TSP">TSP</option><option value="TBSP">TBSP</option>
+                        <option value="EACH">EACH</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="wasteDate">Date</label>
+                    <input type="date" id="wasteDate">
+                </div>
+                <div class="form-group">
+                    <label for="reason">Reason (optional)</label>
+                    <select id="reason">
+                        <option value="">—</option>
+                        <option value="Spoiled">Spoiled</option>
+                        <option value="Over-prepped">Over-prepped</option>
+                        <option value="Dropped">Dropped</option>
+                        <option value="Trim Loss">Trim Loss</option>
+                        <option value="Expired">Expired</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <button type="button" id="addWasteBtn" class="btn-primary">+ Log Waste</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Filter by Date Range</h2>
+            <div class="inline-form">
+                <button type="button" class="btn-secondary quick-filter" data-range="today">Today</button>
+                <button type="button" class="btn-secondary quick-filter" data-range="week">This Week</button>
+                <button type="button" class="btn-secondary quick-filter" data-range="month">This Month</button>
+                <button type="button" class="btn-secondary quick-filter" data-range="year">This Year</button>
+                <button type="button" class="btn-secondary quick-filter" data-range="all">All Time</button>
+                <div class="form-group">
+                    <label for="startDate">From</label>
+                    <input type="date" id="startDate">
+                </div>
+                <div class="form-group">
+                    <label for="endDate">To</label>
+                    <input type="date" id="endDate">
+                </div>
+                <button type="button" id="applyFilterBtn" class="btn-primary">Apply</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h2 style="margin:0;">Waste Log</h2>
+                <div style="font-size:11pt;">
+                    Total Waste Cost: <b id="totalWasteCost" style="color:var(--status-bad);">$0.00</b>
+                </div>
+            </div>
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Item</th>
+                    <th>Type</th>
+                    <th>Amount</th>
+                    <th>Cost</th>
+                    <th>Reason</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody id="wasteBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .btn-secondary {
+        background: var(--white);
+        color: var(--charcoal);
+        border: 1.5px solid var(--rule);
+        padding: 9px 16px;
+        border-radius: 4px;
+        font-size: 9.5pt;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .btn-secondary:hover { border-color: var(--gold); color: var(--gold-dark); }
+    .btn-secondary.active { background: var(--charcoal); color: var(--white); border-color: var(--charcoal); }
+</style>
+
+<script>
+    const token = localStorage.getItem('grillogic_token');
+    if (!token) window.location.href = '/login';
+    document.getElementById('userEmail').textContent = localStorage.getItem('grillogic_email') || '';
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+        localStorage.clear();
+        window.location.href = '/login';
+    });
+
+    let allIngredients = [];
+    let allSubRecipes = [];
+    const SUFFIX = ' (Batch)';
+
+    async function loadOptions() {
+        const [ingredientsRes, recipesRes] = await Promise.all([
+            fetch('/api/ingredients', { headers: { 'Authorization': 'Bearer ' + token } }),
+            fetch('/api/recipes', { headers: { 'Authorization': 'Bearer ' + token } })
+        ]);
+        allIngredients = await ingredientsRes.json();
+        const allRecipes = await recipesRes.json();
+        allSubRecipes = allRecipes.filter(r => r.batchYieldAmount != null && r.batchYieldUnit != null);
+
+        const datalist = document.getElementById('itemOptions');
+        datalist.innerHTML = '';
+        allIngredients.forEach(ing => {
+            const opt = document.createElement('option');
+            opt.value = ing.name;
+            datalist.appendChild(opt);
+        });
+        allSubRecipes.forEach(sr => {
+            const opt = document.createElement('option');
+            opt.value = sr.name + SUFFIX;
+            datalist.appendChild(opt);
+        });
+    }
+
+    document.getElementById('addWasteBtn').addEventListener('click', async function() {
+        const name = document.getElementById('itemSearch').value;
+        const amount = parseFloat(document.getElementById('amount').value);
+        const unit = document.getElementById('unit').value;
+        const wasteDate = document.getElementById('wasteDate').value || new Date().toISOString().split('T')[0];
+        const reason = document.getElementById('reason').value;
+
+        if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
+
+        let payload = { amount, amountUnit: unit, wasteDate, reason };
+
+        if (name.endsWith(SUFFIX)) {
+            const baseName = name.slice(0, -SUFFIX.length);
+            const sr = allSubRecipes.find(s => s.name === baseName);
+            if (!sr) { alert('Please select a valid sub-recipe from the list.'); return; }
+            payload.subRecipeId = sr.id;
+        } else {
+            const ing = allIngredients.find(i => i.name === name);
+            if (!ing) { alert('Please select a valid ingredient from the list.'); return; }
+            payload.ingredientId = ing.id;
+        }
+
+        const response = await fetch('/api/waste', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            document.getElementById('itemSearch').value = '';
+            document.getElementById('amount').value = '';
+            document.getElementById('reason').value = '';
+            loadWaste();
+        } else {
+            alert('Failed to log waste.');
+        }
+    });
+
+    async function deleteWaste(id) {
+        if (!confirm('Remove this waste entry?')) return;
+        const response = await fetch('/api/waste/' + id, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (response.ok) loadWaste();
+    }
+
+    async function loadWaste() {
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+
+        let url = '/api/waste';
+        const params = [];
+        if (startDate) params.push('startDate=' + startDate);
+        if (endDate) params.push('endDate=' + endDate);
+        if (params.length) url += '?' + params.join('&');
+
+        const response = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+        if (response.status === 401 || response.status === 403) {
+            localStorage.clear();
+            window.location.href = '/login';
+            return;
+        }
+
+        const entries = await response.json();
+        const tbody = document.getElementById('wasteBody');
+        let total = 0;
+
+        if (entries.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--mgray);">No waste logged for this period.</td></tr>';
+        } else {
+            tbody.innerHTML = entries.map(e => {
+                total += e.cost;
+                return `
+                <tr>
+                    <td>${e.wasteDate}</td>
+                    <td>${e.itemName}</td>
+                    <td>${e.itemType}</td>
+                    <td>${e.amount} ${e.unit}</td>
+                    <td style="color:var(--status-bad); font-weight:700;">$${e.cost.toFixed(2)}</td>
+                    <td>${e.reason || '—'}</td>
+                    <td><button type="button" class="btn-link" onclick="deleteWaste(${e.id})">Remove</button></td>
+                </tr>
+            `;
+            }).join('');
+        }
+
+        document.getElementById('totalWasteCost').textContent = '$' + total.toFixed(2);
+    }
+
+    function setDateRange(range) {
+        const today = new Date();
+        let start, end;
+        end = today.toISOString().split('T')[0];
+
+        if (range === 'today') {
+            start = end;
+        } else if (range === 'week') {
+            const d = new Date(today);
+            d.setDate(d.getDate() - 7);
+            start = d.toISOString().split('T')[0];
+        } else if (range === 'month') {
+            const d = new Date(today);
+            d.setMonth(d.getMonth() - 1);
+            start = d.toISOString().split('T')[0];
+        } else if (range === 'year') {
+            const d = new Date(today);
+            d.setFullYear(d.getFullYear() - 1);
+            start = d.toISOString().split('T')[0];
+        } else {
+            start = '';
+            end = '';
+        }
+
+        document.getElementById('startDate').value = start;
+        document.getElementById('endDate').value = end;
+        loadWaste();
+    }
+
+    document.querySelectorAll('.quick-filter').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.quick-filter').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            setDateRange(this.dataset.range);
+        });
+    });
+
+    document.getElementById('applyFilterBtn').addEventListener('click', loadWaste);
+
+    loadOptions();
+    loadWaste();
+</script>
+
+</body>
+</html>

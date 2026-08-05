@@ -1,7 +1,9 @@
 package grillogic.controller;
 
 import grillogic.model.Recipe;
+import grillogic.model.User;
 import grillogic.repository.RecipeRepository;
+import grillogic.repository.UserRepository;
 import grillogic.service.CurrentUserService;
 import grillogic.service.PdfReportService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,29 +25,67 @@ public class ReportController {
     private final RecipeRepository recipeRepository;
     private final PdfReportService pdfReportService;
     private final CurrentUserService currentUserService;
+    private final UserRepository userRepository;
 
     @Autowired
     public ReportController(RecipeRepository recipeRepository,
                             PdfReportService pdfReportService,
-                            CurrentUserService currentUserService) {
+                            CurrentUserService currentUserService,
+                            UserRepository userRepository) {
         this.recipeRepository = recipeRepository;
         this.pdfReportService = pdfReportService;
         this.currentUserService = currentUserService;
+        this.userRepository = userRepository;
+    }
+
+    private void requireAdmin(User currentUser) {
+        if (!"ADMIN".equals(currentUser.getRole())) {
+            throw new RuntimeException("Access denied: admin only");
+        }
     }
 
     @GetMapping("/full-audit")
     public ResponseEntity<byte[]> getFullAuditReport() {
-        Long ownerId = currentUserService.getCurrentUser().getId();
+        User currentUser = currentUserService.getCurrentUser();
+        Long ownerId = currentUser.getId();
+        String tier = currentUser.getTier();
 
         List<Recipe> recipes = recipeRepository.findAll().stream()
                 .filter(r -> r.getOwnerId().equals(ownerId))
                 .collect(Collectors.toList());
 
-        byte[] pdfBytes = pdfReportService.generateFullAuditReport(recipes);
+        byte[] pdfBytes = pdfReportService.generateFullAuditReport(recipes, tier);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
         headers.setContentDispositionFormData("attachment", "GRILLOGIC_Full_Audit_Report.pdf");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
+    }
+
+    @GetMapping("/full-audit/{clientId}")
+    public ResponseEntity<byte[]> getFullAuditReportForClient(@PathVariable Long clientId) {
+        User admin = currentUserService.getCurrentUser();
+        requireAdmin(admin);
+
+        User client = userRepository.findById(clientId)
+                .orElseThrow(() -> new RuntimeException("Client not found: " + clientId));
+
+        List<Recipe> recipes = recipeRepository.findAll().stream()
+                .filter(r -> r.getOwnerId().equals(clientId))
+                .collect(Collectors.toList());
+
+        byte[] pdfBytes = pdfReportService.generateFullAuditReport(recipes, client.getTier());
+
+        String safeName = client.getBusinessName() != null
+                ? client.getBusinessName().replaceAll("\\s+", "_")
+                : "Client_" + clientId;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "GRILLOGIC_Full_Audit_Report_" + safeName + ".pdf");
 
         return ResponseEntity.ok()
                 .headers(headers)

@@ -25,6 +25,15 @@
         </div>
 
         <div class="card">
+            <h2>Reports</h2>
+            <p style="font-size:9.5pt; color:var(--mgray); margin-bottom:12px;">
+                Download your full audit report as a PDF. Available sections depend on your subscription tier.
+            </p>
+            <button type="button" id="downloadReportBtn" class="btn-primary">Download Full Audit Report (PDF)</button>
+            <span id="reportStatus" style="margin-left:12px; font-size:9pt; color:var(--mgray);"></span>
+        </div>
+
+        <div class="card">
             <h2>Your Recipes</h2>
             <table class="data-table">
                 <thead>
@@ -84,6 +93,47 @@
         }
         return response.json();
     }
+
+    async function downloadReport() {
+        const statusEl = document.getElementById('reportStatus');
+        const btn = document.getElementById('downloadReportBtn');
+        btn.disabled = true;
+        statusEl.textContent = 'Generating...';
+
+        try {
+            const response = await fetch('/api/reports/full-audit', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+
+            if (response.status === 401 || response.status === 403) {
+                localStorage.clear();
+                window.location.href = '/login';
+                return;
+            }
+
+            if (!response.ok) {
+                statusEl.textContent = 'Failed to generate report (status ' + response.status + ').';
+                return;
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'GRILLOGIC_Full_Audit_Report.pdf';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            statusEl.textContent = 'Downloaded.';
+        } catch (err) {
+            statusEl.textContent = 'Error: ' + err.message;
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    document.getElementById('downloadReportBtn').addEventListener('click', downloadReport);
 
     async function loadDashboard() {
         const [recipes, ingredients] = await Promise.all([

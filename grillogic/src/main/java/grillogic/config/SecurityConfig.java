@@ -35,6 +35,7 @@ public class SecurityConfig {
                                 "/admin",
                                 "/admin/clients/*",
                                 "/account",
+                                "/waste",
                                 "/css/**",
                                 "/img/**"
                         ).permitAll()

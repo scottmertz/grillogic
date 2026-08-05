@@ -13,6 +13,7 @@
         <div class="app-nav">
             <a href="/recipes">+ New Recipe</a>
             <a href="/recipes/list">All Recipes</a>
+            <a href="/waste">Waste Tracking</a>
             <span id="userEmail"></span>
             <button id="logoutBtn" class="btn-link">Log Out</button>
         </div>
@@ -25,11 +26,11 @@
             <h2>Add Ingredient</h2>
             <form id="addIngredientForm" class="inline-form">
                 <div class="form-group">
-                    <label>Name</label>
+                    <label for="name">Name</label>
                     <input type="text" id="name" required>
                 </div>
                 <div class="form-group">
-                    <label>Category</label>
+                    <label for="category">Category</label>
                     <select id="category" required>
                         <option value="Protein">Protein</option>
                         <option value="Produce">Produce</option>
@@ -41,15 +42,15 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Purchase Price ($)</label>
+                    <label for="purchasePrice">Purchase Price ($)</label>
                     <input type="number" id="purchasePrice" step="0.01" min="0" required>
                 </div>
                 <div class="form-group">
-                    <label>Purchase Amount</label>
+                    <label for="purchaseAmount">Purchase Amount</label>
                     <input type="number" id="purchaseAmount" step="0.01" min="0" required>
                 </div>
                 <div class="form-group">
-                    <label>Purchase Unit</label>
+                    <label for="purchaseUnit">Purchase Unit</label>
                     <select id="purchaseUnit" required>
                         <option value="G">G (grams)</option>
                         <option value="KG">KG (kilograms)</option>
@@ -65,7 +66,7 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Yield %</label>
+                    <label for="yieldPct">Yield %</label>
                     <select id="yieldPct" required>
                         <option value="1.0">100% (no loss)</option>
                         <option value="0.95">95%</option>
@@ -85,7 +86,7 @@
 
         <div class="card">
             <h2>All Ingredients</h2>
-            <table id="ingredientsTable" class="data-table">
+            <table class="data-table">
                 <thead>
                 <tr>
                     <th>Name</th>
@@ -94,30 +95,55 @@
                     <th>Purchase Amount</th>
                     <th>Unit</th>
                     <th>Yield %</th>
+                    <th>Substitutes</th>
                 </tr>
                 </thead>
-                <tbody id="ingredientsBody">
-                <!-- Filled in by JavaScript -->
-                </tbody>
+                <tbody id="ingredientsBody"></tbody>
             </table>
         </div>
     </div>
 </div>
 
+<!-- Substitute management modal -->
+<div id="subModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.4); z-index:100; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:8px; padding:28px; max-width:520px; width:90%; max-height:80vh; overflow-y:auto;">
+        <h2 id="subModalTitle" style="margin-bottom:16px;">Substitutes</h2>
+
+        <table class="data-table" style="margin-bottom:20px;">
+            <thead>
+            <tr><th>Substitute</th><th>Category</th><th>$/Unit</th><th>Note</th><th></th></tr>
+            </thead>
+            <tbody id="subListBody"></tbody>
+        </table>
+
+        <div class="inline-form" style="margin-bottom:16px;">
+            <div class="form-group" style="flex:2;">
+                <label for="subSearch">Add Substitute</label>
+                <input type="text" id="subSearch" list="subOptions" placeholder="Start typing...">
+                <datalist id="subOptions"></datalist>
+            </div>
+            <div class="form-group" style="flex:2;">
+                <label for="subNote">Note (optional)</label>
+                <input type="text" id="subNote" placeholder="e.g. Cheaper, similar flavor">
+            </div>
+            <button type="button" id="addSubBtn" class="btn-primary">Add</button>
+        </div>
+
+        <button type="button" id="closeSubModalBtn" class="btn-secondary" style="width:100%; background:var(--lgray); border:1px solid var(--rule); padding:10px; border-radius:4px; font-weight:700; cursor:pointer;">Close</button>
+    </div>
+</div>
+
 <script>
     const token = localStorage.getItem('grillogic_token');
-
-    // If there's no token at all, don't even try — send them to login immediately
-    if (!token) {
-        window.location.href = '/login';
-    }
-
+    if (!token) window.location.href = '/login';
     document.getElementById('userEmail').textContent = localStorage.getItem('grillogic_email') || '';
-
     document.getElementById('logoutBtn').addEventListener('click', function() {
         localStorage.clear();
         window.location.href = '/login';
     });
+
+    let allIngredients = [];
+    let currentIngredientId = null;
 
     async function loadIngredients() {
         const response = await fetch('/api/ingredients', {
@@ -125,17 +151,16 @@
         });
 
         if (response.status === 401 || response.status === 403) {
-            // Token missing, expired, or invalid — force a fresh login
             localStorage.clear();
             window.location.href = '/login';
             return;
         }
 
-        const ingredients = await response.json();
+        allIngredients = await response.json();
         const tbody = document.getElementById('ingredientsBody');
         tbody.innerHTML = '';
 
-        ingredients.forEach(ing => {
+        allIngredients.forEach(ing => {
             const row = document.createElement('tr');
             row.innerHTML = `
             <td>${ing.name}</td>
@@ -144,6 +169,7 @@
             <td>${ing.purchaseAmount}</td>
             <td>${ing.purchaseUnit}</td>
             <td>${(ing.yieldPct * 100).toFixed(0)}%</td>
+            <td><button type="button" class="btn-link" onclick="openSubModal(${ing.id}, '${ing.name.replace(/'/g, "\\'")}')">Manage</button></td>
         `;
             tbody.appendChild(row);
         });
@@ -172,13 +198,89 @@
 
         if (response.ok) {
             document.getElementById('addIngredientForm').reset();
-            loadIngredients(); // refresh the table with the new ingredient
+            loadIngredients();
         } else {
             alert('Failed to add ingredient.');
         }
     });
 
-    // Load the ingredient list as soon as the page is ready
+    function openSubModal(ingredientId, ingredientName) {
+        currentIngredientId = ingredientId;
+        document.getElementById('subModalTitle').textContent = 'Substitutes for ' + ingredientName;
+        document.getElementById('subModal').style.display = 'flex';
+
+        const datalist = document.getElementById('subOptions');
+        datalist.innerHTML = '';
+        allIngredients
+            .filter(i => i.id !== ingredientId)
+            .forEach(i => {
+                const opt = document.createElement('option');
+                opt.value = i.name;
+                datalist.appendChild(opt);
+            });
+
+        loadSubstitutes();
+    }
+
+    document.getElementById('closeSubModalBtn').addEventListener('click', function() {
+        document.getElementById('subModal').style.display = 'none';
+    });
+
+    async function loadSubstitutes() {
+        const response = await fetch('/api/substitutes/for/' + currentIngredientId, {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const subs = await response.json();
+
+        const tbody = document.getElementById('subListBody');
+        if (subs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--mgray);">No substitutes added yet.</td></tr>';
+        } else {
+            tbody.innerHTML = subs.map(s => `
+            <tr>
+                <td>${s.substituteName}</td>
+                <td>${s.substituteCategory}</td>
+                <td>$${s.substitutePricePerUnit.toFixed(3)}</td>
+                <td>${s.note || '—'}</td>
+                <td><button type="button" class="btn-link" onclick="removeSub(${s.id})">Remove</button></td>
+            </tr>
+        `).join('');
+        }
+    }
+
+    document.getElementById('addSubBtn').addEventListener('click', async function() {
+        const name = document.getElementById('subSearch').value;
+        const note = document.getElementById('subNote').value;
+
+        const sub = allIngredients.find(i => i.name === name);
+        if (!sub) {
+            alert('Please select a valid ingredient from the list.');
+            return;
+        }
+
+        const response = await fetch('/api/substitutes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ ingredientId: currentIngredientId, substituteId: sub.id, note })
+        });
+
+        if (response.ok) {
+            document.getElementById('subSearch').value = '';
+            document.getElementById('subNote').value = '';
+            loadSubstitutes();
+        } else {
+            alert('Failed to add substitute.');
+        }
+    });
+
+    async function removeSub(id) {
+        const response = await fetch('/api/substitutes/' + id, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (response.ok) loadSubstitutes();
+    }
+
     loadIngredients();
 </script>
 

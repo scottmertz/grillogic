@@ -55,4 +55,9 @@ public class PageController {
     public String accountPage() {
         return "account";
     }
+
+    @GetMapping("/waste")
+    public String wastePage() {
+        return "waste";
+    }
 }
