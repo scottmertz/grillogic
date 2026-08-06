@@ -29,6 +29,7 @@ public class SecurityConfig {
                                 "/ingredients",
                                 "/ingredients/*/vendor-pricing",
                                 "/vendors",
+                                "/invoice-capture",
                                 "/recipes",
                                 "/recipes/list",
                                 "/recipes/*/view",

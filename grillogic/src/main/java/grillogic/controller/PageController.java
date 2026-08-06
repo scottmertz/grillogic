@@ -18,12 +18,17 @@ public class PageController {
 
     @GetMapping("/ingredients/{id}/vendor-pricing")
     public String ingredientVendorPricingPage() {
-        return "ingredient-vendor-pricing.html";
+        return "ingredient-vendor-pricing";
     }
 
     @GetMapping("/vendors")
     public String vendorsPage() {
         return "vendors";
+    }
+
+    @GetMapping("/invoice-capture")
+    public String invoiceCapturePage() {
+        return "invoice-capture.html";
     }
 
     @GetMapping("/recipes")

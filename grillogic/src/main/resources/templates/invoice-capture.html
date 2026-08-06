@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>GRILLOGIC — Invoice Capture</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<div class="app-container">
+    <div class="app-header">
+        <img src="/img/logo.png" alt="GRILLOGIC" class="app-logo-img">
+        <div class="app-nav">
+            <a href="/ingredients">Ingredients</a>
+            <a href="/vendors">Vendors</a>
+            <a href="/recipes/list">All Recipes</a>
+            <a href="/waste">Waste Tracking</a>
+            <span id="userEmail"></span>
+            <button id="logoutBtn" class="btn-link">Log Out</button>
+        </div>
+    </div>
+
+    <div class="app-content">
+        <h1>Invoice Capture</h1>
+        <p style="font-size:9.5pt; color:var(--mgray); margin-bottom:20px;">
+            Upload a photo of a vendor invoice or receipt. Claude reads it and drafts line items below —
+            nothing saves until you review and confirm each one.
+        </p>
+
+        <div class="card">
+            <h2>1. Vendor &amp; Photo</h2>
+            <div class="inline-form">
+                <div class="form-group">
+                    <label for="vendorSelect">Vendor</label>
+                    <select id="vendorSelect"></select>
+                </div>
+                <div class="form-group">
+                    <label for="newVendorName">Or Add New Vendor</label>
+                    <input type="text" id="newVendorName" placeholder="Vendor name">
+                </div>
+                <button type="button" id="addVendorBtn" class="btn-primary">Add Vendor</button>
+            </div>
+            <div class="inline-form" style="margin-top:14px;">
+                <div class="form-group">
+                    <label for="invoiceImage">Invoice / Receipt Photo</label>
+                    <input type="file" id="invoiceImage" accept="image/jpeg,image/png,image/webp,image/gif">
+                </div>
+                <button type="button" id="extractBtn" class="btn-primary">Extract Line Items</button>
+            </div>
+            <p id="extractStatus" style="font-size:9pt; color:var(--mgray); margin-top:10px;"></p>
+        </div>
+
+        <div class="card" id="reviewCard" style="display:none;">
+            <h2>2. Review &amp; Confirm Line Items</h2>
+            <p id="vendorGuessNote" style="font-size:9pt; color:var(--mgray); margin-bottom:12px;"></p>
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>Ingredient</th>
+                    <th>Match / Category</th>
+                    <th>Quantity</th>
+                    <th>Unit</th>
+                    <th>Total Price</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody id="lineItemsBody"></tbody>
+            </table>
+            <button type="button" id="saveAllBtn" class="btn-primary" style="margin-top:14px;">Save All Remaining</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('grillogic_token');
+    if (!token) window.location.href = '/login';
+    document.getElementById('userEmail').textContent = localStorage.getItem('grillogic_email') || '';
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+        localStorage.clear();
+        window.location.href = '/login';
+    });
+
+    const UNIT_OPTIONS = ['G', 'KG', 'OZ', 'LB', 'ML', 'L', 'FL_OZ', 'CUP', 'TSP', 'TBSP', 'EACH'];
+    const CATEGORY_OPTIONS = ['Protein', 'Produce', 'Dairy', 'Dry Goods', 'Condiment', 'Beverage', 'Other'];
+
+    let allVendors = [];
+    let allIngredients = [];
+    let currentLineItems = [];
+
+    async function authFetch(url, options) {
+        const opts = options || {};
+        opts.headers = Object.assign({}, opts.headers, { 'Authorization': 'Bearer ' + token });
+        const response = await fetch(url, opts);
+        if (response.status === 401 || response.status === 403) {
+            localStorage.clear();
+            window.location.href = '/login';
+            return null;
+        }
+        return response;
+    }
+
+    function unitOptionsHtml(selected) {
+        return UNIT_OPTIONS.map(u => `<option value="${u}" ${u === selected ? 'selected' : ''}>${u}</option>`).join('');
+    }
+
+    function categoryOptionsHtml() {
+        return CATEGORY_OPTIONS.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    async function loadVendors() {
+        const response = await authFetch('/api/vendors');
+        if (!response) return;
+        allVendors = await response.json();
+        const select = document.getElementById('vendorSelect');
+        select.innerHTML = allVendors.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+    }
+
+    async function loadIngredients() {
+        const response = await authFetch('/api/ingredients');
+        if (!response) return;
+        allIngredients = await response.json();
+    }
+
+    document.getElementById('addVendorBtn').addEventListener('click', async function() {
+        const name = document.getElementById('newVendorName').value.trim();
+        if (!name) {
+            alert('Enter a vendor name first.');
+            return;
+        }
+        const response = await authFetch('/api/vendors', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name })
+        });
+        if (response && response.ok) {
+            document.getElementById('newVendorName').value = '';
+            await loadVendors();
+            const newVendor = allVendors.find(v => v.name === name);
+            if (newVendor) document.getElementById('vendorSelect').value = newVendor.id;
+        } else {
+            alert('Failed to add vendor.');
+        }
+    });
+
+    // Best-effort exact/substring match against Claude's vendor name guess —
+    // this just pre-selects the dropdown, it never auto-creates a vendor.
+    function tryPreselectVendor(vendorNameGuess) {
+        if (!vendorNameGuess) return;
+        const guess = vendorNameGuess.toLowerCase();
+        const match = allVendors.find(v => v.name.toLowerCase() === guess)
+            || allVendors.find(v => v.name.toLowerCase().includes(guess) || guess.includes(v.name.toLowerCase()));
+        if (match) {
+            document.getElementById('vendorSelect').value = match.id;
+        }
+    }
+
+    function findMatchingIngredient(nameGuess) {
+        if (!nameGuess) return null;
+        const guess = nameGuess.toLowerCase().trim();
+        return allIngredients.find(i => i.name.toLowerCase().trim() === guess) || null;
+    }
+
+    document.getElementById('extractBtn').addEventListener('click', async function() {
+        const fileInput = document.getElementById('invoiceImage');
+        const statusEl = document.getElementById('extractStatus');
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            alert('Choose an invoice photo first.');
+            return;
+        }
+        if (document.getElementById('vendorSelect').value === '') {
+            alert('Add or select a vendor first.');
+            return;
+        }
+
+        statusEl.textContent = 'Reading invoice... this can take a few seconds.';
+        document.getElementById('extractBtn').disabled = true;
+
+        const formData = new FormData();
+        formData.append('image', fileInput.files[0]);
+
+        try {
+            const response = await authFetch('/api/invoice-capture/extract', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response) return;
+            if (!response.ok) {
+                const errText = await response.text();
+                statusEl.textContent = 'Extraction failed: ' + errText;
+                return;
+            }
+
+            const result = await response.json();
+            statusEl.textContent = 'Extracted ' + result.lineItems.length + ' line item(s). Review below.';
+
+            tryPreselectVendor(result.vendorNameGuess);
+
+            document.getElementById('vendorGuessNote').textContent = result.vendorNameGuess
+                ? 'Claude guessed this invoice is from: "' + result.vendorNameGuess + '" — confirm the Vendor dropdown above is correct before saving.'
+                : 'Claude could not identify a vendor name on this invoice — make sure the Vendor dropdown above is set correctly.';
+
+            currentLineItems = result.lineItems;
+            renderLineItems();
+            document.getElementById('reviewCard').style.display = 'block';
+        } catch (err) {
+            statusEl.textContent = 'Error: ' + err.message;
+        } finally {
+            document.getElementById('extractBtn').disabled = false;
+        }
+    });
+
+    function renderLineItems() {
+        const tbody = document.getElementById('lineItemsBody');
+        tbody.innerHTML = currentLineItems.map((item, idx) => {
+            const match = findMatchingIngredient(item.ingredientNameGuess);
+            const matchNote = match
+                ? `<span style="color:var(--status-good, #2D6A4F); font-size:8pt;">Matches existing ingredient</span>`
+                : `<span style="color:var(--mgray); font-size:8pt;">No match — will create new</span>`;
+
+            return `
+            <tr id="row-${idx}">
+                <td>
+                    <input type="text" id="name-${idx}" value="${(item.ingredientNameGuess || '').replace(/"/g, '&quot;')}" list="ing-list" style="width:100%;">
+                </td>
+                <td>
+                    ${matchNote}<br>
+                    <select id="category-${idx}" style="margin-top:4px; ${match ? 'display:none;' : ''}">
+                        ${categoryOptionsHtml()}
+                    </select>
+                </td>
+                <td><input type="number" id="qty-${idx}" value="${item.quantity ?? ''}" step="0.01" style="width:80px;"></td>
+                <td>
+                    <select id="unit-${idx}">${unitOptionsHtml(item.unit)}</select>
+                </td>
+                <td><input type="number" id="price-${idx}" value="${item.totalPrice ?? ''}" step="0.01" style="width:90px;"></td>
+                <td><button type="button" class="btn-primary" onclick="saveLine(${idx})">Save</button></td>
+            </tr>
+        `;
+        }).join('');
+
+        const datalist = document.getElementById('ing-list') || document.createElement('datalist');
+        datalist.id = 'ing-list';
+        datalist.innerHTML = allIngredients.map(i => `<option value="${i.name}">`).join('');
+        if (!document.getElementById('ing-list')) document.body.appendChild(datalist);
+
+        // Re-check match status live as the name field is edited.
+        currentLineItems.forEach((item, idx) => {
+            document.getElementById('name-' + idx).addEventListener('input', function() {
+                const match = findMatchingIngredient(this.value);
+                const categorySelect = document.getElementById('category-' + idx);
+                categorySelect.style.display = match ? 'none' : 'inline-block';
+            });
+        });
+    }
+
+    async function saveLine(idx) {
+        const row = document.getElementById('row-' + idx);
+        const name = document.getElementById('name-' + idx).value.trim();
+        const quantity = parseFloat(document.getElementById('qty-' + idx).value);
+        const unit = document.getElementById('unit-' + idx).value;
+        const price = parseFloat(document.getElementById('price-' + idx).value);
+        const category = document.getElementById('category-' + idx).value;
+        const vendorId = parseInt(document.getElementById('vendorSelect').value, 10);
+
+        if (!name || isNaN(quantity) || isNaN(price)) {
+            alert('Fill in ingredient name, quantity, and price before saving.');
+            return;
+        }
+
+        let ingredient = findMatchingIngredient(name);
+
+        if (!ingredient) {
+            const createResponse = await authFetch('/api/ingredients', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: name,
+                    category: category,
+                    purchasePrice: price,
+                    purchaseAmount: quantity,
+                    purchaseUnit: unit,
+                    yieldPct: 1.0
+                })
+            });
+            if (!createResponse || !createResponse.ok) {
+                alert('Failed to create new ingredient for "' + name + '".');
+                return;
+            }
+            ingredient = await createResponse.json();
+            allIngredients.push(ingredient);
+        }
+
+        const quoteResponse = await authFetch('/api/ingredients/' + ingredient.id + '/vendor-prices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                vendorId: vendorId,
+                purchasePrice: price,
+                purchaseAmount: quantity,
+                purchaseUnit: unit
+            })
+        });
+
+        if (quoteResponse && quoteResponse.ok) {
+            row.style.opacity = '0.5';
+            row.querySelector('button').outerHTML = '<b style="color:var(--status-good, #2D6A4F);">✓ Saved</b>';
+            row.dataset.saved = 'true';
+        } else {
+            alert('Ingredient "' + name + '" was saved, but the vendor price quote failed to save. Add it manually on the ingredient\'s Vendor Pricing page.');
+        }
+    }
+
+    document.getElementById('saveAllBtn').addEventListener('click', async function() {
+        for (let idx = 0; idx < currentLineItems.length; idx++) {
+            const row = document.getElementById('row-' + idx);
+            if (row && row.dataset.saved !== 'true') {
+                await saveLine(idx);
+            }
+        }
+    });
+
+    (async function init() {
+        await loadVendors();
+        await loadIngredients();
+    })();
+</script>
+
+</body>
+</html>
