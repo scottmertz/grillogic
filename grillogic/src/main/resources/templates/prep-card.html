@@ -107,7 +107,7 @@
 <body>
 
 <div class="header">
-    <div class="header-logo"><img src="http://localhost:8080/img/logo.png" /></div>
+    <div class="header-logo"><img th:src="${logoBase64}" /></div>
     <div class="header-title">
         <div class="dish-name" th:text="${recipeName}">Dish Name</div>
         <div class="subtitle">Kitchen Prep Card</div>

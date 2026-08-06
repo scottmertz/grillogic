@@ -4,6 +4,7 @@ import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import grillogic.controller.dto.ReportRow;
 import grillogic.model.Recipe;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
@@ -11,6 +12,7 @@ import org.thymeleaf.context.Context;
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,10 +24,28 @@ public class PdfReportService {
     private final TemplateEngine templateEngine;
     private final CostingService costingService;
 
+    // Loaded once from the classpath (bundled inside the jar, works identically in
+    // dev and production) and cached as a base64 data URI. This avoids the PDF
+    // renderer having to make an HTTP request back to the app itself just to fetch
+    // its own logo — no dependency on host, port, or the app being reachable
+    // from itself while mid-request.
+    private final String logoBase64;
+
     @Autowired
     public PdfReportService(TemplateEngine templateEngine, CostingService costingService) {
         this.templateEngine = templateEngine;
         this.costingService = costingService;
+        this.logoBase64 = loadLogoAsBase64();
+    }
+
+    private String loadLogoAsBase64() {
+        try {
+            ClassPathResource resource = new ClassPathResource("static/img/logo.png");
+            byte[] bytes = resource.getInputStream().readAllBytes();
+            return "data:image/png;base64," + Base64.getEncoder().encodeToString(bytes);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load logo.png from classpath for PDF generation: " + e.getMessage(), e);
+        }
     }
 
     public byte[] generateFullAuditReport(List<Recipe> recipes, String tier) {
@@ -37,8 +57,6 @@ public class PdfReportService {
         long highCount = rows.stream().filter(r -> "status-warn".equals(r.getStatusClass())).count();
         long solidCount = rows.stream().filter(r -> "status-good".equals(r.getStatusClass())).count();
 
-        // Tier gating: Recovery Plan requires STANDARD or PREMIUM.
-        // 30-Day Roadmap requires PREMIUM only.
         boolean showRecoveryPlan = "STANDARD".equals(tier) || "PREMIUM".equals(tier);
         boolean showRoadmap = "PREMIUM".equals(tier);
 
@@ -55,6 +73,7 @@ public class PdfReportService {
                 .collect(Collectors.toList()));
         context.setVariable("showRecoveryPlan", showRecoveryPlan);
         context.setVariable("showRoadmap", showRoadmap);
+        context.setVariable("logoBase64", logoBase64);
 
         String html = templateEngine.process("audit-report", context);
 
@@ -62,7 +81,7 @@ public class PdfReportService {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             PdfRendererBuilder builder = new PdfRendererBuilder();
             builder.useFastMode();
-            builder.withHtmlContent(html, "http://localhost:8080/");
+            builder.withHtmlContent(html, "");
             builder.toStream(outputStream);
             builder.run();
             return outputStream.toByteArray();
@@ -93,6 +112,7 @@ public class PdfReportService {
         context.setVariable("lines", lines);
         context.setVariable("instructions",
                 recipe.getInstructions() != null ? recipe.getInstructions() : "No instructions provided.");
+        context.setVariable("logoBase64", logoBase64);
 
         String html = templateEngine.process("prep-card", context);
 
@@ -100,7 +120,7 @@ public class PdfReportService {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             PdfRendererBuilder builder = new PdfRendererBuilder();
             builder.useFastMode();
-            builder.withHtmlContent(html, "http://localhost:8080/");
+            builder.withHtmlContent(html, "");
             builder.toStream(outputStream);
             builder.run();
             return outputStream.toByteArray();
