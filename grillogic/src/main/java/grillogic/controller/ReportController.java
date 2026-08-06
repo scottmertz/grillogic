@@ -47,8 +47,14 @@ public class ReportController {
     @GetMapping("/full-audit")
     public ResponseEntity<byte[]> getFullAuditReport() {
         User currentUser = currentUserService.getCurrentUser();
-        Long ownerId = currentUser.getId();
-        String tier = currentUser.getTier();
+        Long ownerId = currentUserService.getEffectiveOwnerId();
+
+        // Tier lives on the account OWNER's User record, not necessarily the
+        // person currently logged in (a manager doesn't have their own tier).
+        User billingOwner = ownerId.equals(currentUser.getId())
+                ? currentUser
+                : userRepository.findById(ownerId).orElse(currentUser);
+        String tier = billingOwner.getTier();
 
         List<Recipe> recipes = recipeRepository.findAll().stream()
                 .filter(r -> r.getOwnerId().equals(ownerId))

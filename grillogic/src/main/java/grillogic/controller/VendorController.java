@@ -25,14 +25,14 @@ public class VendorController {
 
     @PostMapping
     public Vendor createVendor(@RequestBody Vendor vendor) {
-        Long ownerId = currentUserService.getCurrentUser().getId();
+        Long ownerId = currentUserService.getEffectiveOwnerId();
         vendor.setOwnerId(ownerId);
         return vendorRepository.save(vendor);
     }
 
     @GetMapping
     public List<Vendor> getAllVendors() {
-        Long ownerId = currentUserService.getCurrentUser().getId();
+        Long ownerId = currentUserService.getEffectiveOwnerId();
         return vendorRepository.findAll().stream()
                 .filter(v -> v.getOwnerId().equals(ownerId))
                 .collect(Collectors.toList());

@@ -37,10 +37,10 @@ public class IngredientVendorPriceController {
         this.currentUserService = currentUserService;
     }
 
-    // Confirms the ingredient exists AND belongs to whoever is currently logged in —
-    // same ownership check pattern used everywhere else in the app.
+    // Confirms the ingredient exists AND belongs to the effective account owner —
+    // so a manager login sees/manages the same ingredients as the owner they're linked to.
     private Ingredient requireOwnedIngredient(Long ingredientId) {
-        Long ownerId = currentUserService.getCurrentUser().getId();
+        Long ownerId = currentUserService.getEffectiveOwnerId();
         Ingredient ingredient = ingredientRepository.findById(ingredientId)
                 .orElseThrow(() -> new RuntimeException("Ingredient not found: " + ingredientId));
         if (!ingredient.getOwnerId().equals(ownerId)) {

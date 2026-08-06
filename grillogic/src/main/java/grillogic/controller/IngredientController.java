@@ -25,14 +25,14 @@ public class IngredientController {
 
     @PostMapping
     public Ingredient createIngredient(@RequestBody Ingredient ingredient) {
-        Long ownerId = currentUserService.getCurrentUser().getId();
+        Long ownerId = currentUserService.getEffectiveOwnerId();
         ingredient.setOwnerId(ownerId);
         return ingredientRepository.save(ingredient);
     }
 
     @GetMapping
     public List<Ingredient> getAllIngredients() {
-        Long ownerId = currentUserService.getCurrentUser().getId();
+        Long ownerId = currentUserService.getEffectiveOwnerId();
         return ingredientRepository.findAll().stream()
                 .filter(i -> i.getOwnerId().equals(ownerId))
                 .collect(Collectors.toList());

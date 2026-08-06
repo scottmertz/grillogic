@@ -32,7 +32,7 @@ public class SubstituteController {
 
     @PostMapping
     public SubstituteResponse createSubstitute(@RequestBody SubstituteRequest request) {
-        Long ownerId = currentUserService.getCurrentUser().getId();
+        Long ownerId = currentUserService.getEffectiveOwnerId();
 
         Ingredient ingredient = ingredientRepository.findById(request.getIngredientId())
                 .orElseThrow(() -> new RuntimeException("Ingredient not found: " + request.getIngredientId()));

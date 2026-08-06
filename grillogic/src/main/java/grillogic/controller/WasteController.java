@@ -42,7 +42,7 @@ public class WasteController {
 
     @PostMapping
     public WasteEntryResponse createWasteEntry(@RequestBody WasteEntryRequest request) {
-        Long ownerId = currentUserService.getCurrentUser().getId();
+        Long ownerId = currentUserService.getEffectiveOwnerId();
 
         WasteEntry entry = new WasteEntry();
         entry.setOwnerId(ownerId);
@@ -72,7 +72,7 @@ public class WasteController {
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate) {
 
-        Long ownerId = currentUserService.getCurrentUser().getId();
+        Long ownerId = currentUserService.getEffectiveOwnerId();
 
         return wasteEntryRepository.findAll().stream()
                 .filter(w -> w.getOwnerId().equals(ownerId))
@@ -114,8 +114,6 @@ public class WasteController {
     }
 
     private double costOfWasteLine(Ingredient ingredient, Double amount, grillogic.model.Unit unit) {
-        // Build a temporary RecipeIngredient just to reuse CostingService's existing math —
-        // avoids duplicating the unit-conversion + yield-adjustment logic a third time.
         grillogic.model.RecipeIngredient tempLine = new grillogic.model.RecipeIngredient();
         tempLine.setIngredient(ingredient);
         tempLine.setAmount(amount);

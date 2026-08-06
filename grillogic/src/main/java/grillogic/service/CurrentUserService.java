@@ -21,4 +21,13 @@ public class CurrentUserService {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found: " + email));
     }
+
+    // Returns whichever User id owns the data this person should see — their own id
+    // if they're a primary account owner, or their linked owner's id if they're a
+    // secondary manager login. This is what every controller should use for
+    // ownerId scoping, instead of getCurrentUser().getId() directly.
+    public Long getEffectiveOwnerId() {
+        User current = getCurrentUser();
+        return current.getLinkedOwnerId() != null ? current.getLinkedOwnerId() : current.getId();
+    }
 }

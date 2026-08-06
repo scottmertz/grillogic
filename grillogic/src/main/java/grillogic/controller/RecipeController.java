@@ -45,7 +45,7 @@ public class RecipeController {
 
     @PostMapping
     public RecipeResponse createRecipe(@RequestBody RecipeCreateRequest request) {
-        Long ownerId = currentUserService.getCurrentUser().getId();
+        Long ownerId = currentUserService.getEffectiveOwnerId();
 
         Recipe recipe = new Recipe();
         recipe.setOwnerId(ownerId);
@@ -93,7 +93,7 @@ public class RecipeController {
 
     @GetMapping
     public List<RecipeSummaryResponse> getAllRecipes() {
-        Long ownerId = currentUserService.getCurrentUser().getId();
+        Long ownerId = currentUserService.getEffectiveOwnerId();
 
         return recipeRepository.findAll().stream()
                 .filter(r -> r.getOwnerId().equals(ownerId))

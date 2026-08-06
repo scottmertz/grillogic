@@ -53,6 +53,9 @@ public class AdminController {
         requireAdmin();
 
         return userRepository.findAll().stream()
+                // Manager logins (linkedOwnerId != null) aren't separate clients —
+                // they share the owner's data, so only list primary account owners here.
+                .filter(user -> user.getLinkedOwnerId() == null)
                 .map(user -> {
                     AdminClientRow row = new AdminClientRow();
                     row.setUserId(user.getId());

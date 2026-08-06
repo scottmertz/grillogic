@@ -21,8 +21,6 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/price-alerts")
 public class PriceAlertController {
 
-    // A vendor quote gets flagged if its price moved 10% or more (up or down)
-    // since the previous price on file for it.
     private static final double ALERT_THRESHOLD_PCT = 10.0;
 
     private final IngredientVendorPriceRepository vendorPriceRepository;
@@ -40,7 +38,7 @@ public class PriceAlertController {
 
     @GetMapping
     public List<PriceAlertResponse> getPriceAlerts() {
-        Long ownerId = currentUserService.getCurrentUser().getId();
+        Long ownerId = currentUserService.getEffectiveOwnerId();
 
         Map<Long, Ingredient> ownedIngredients = ingredientRepository.findAll().stream()
                 .filter(i -> i.getOwnerId().equals(ownerId))
