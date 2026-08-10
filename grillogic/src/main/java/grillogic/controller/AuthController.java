@@ -36,6 +36,11 @@ public class AuthController {
 
     @PostMapping("/signup")
     public String signup(@RequestBody SignupRequest request) {
+        User caller = currentUserService.getCurrentUser();
+        if (!"ADMIN".equals(caller.getRole())) {
+            throw new RuntimeException("Access denied: admin only");
+        }
+
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new RuntimeException("Email already registered: " + request.getEmail());
         }
