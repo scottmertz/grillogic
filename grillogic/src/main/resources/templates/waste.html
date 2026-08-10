@@ -8,17 +8,7 @@
 <body>
 
 <div class="app-container">
-    <div class="app-header">
-        <img src="/img/logo.png" alt="GRILLOGIC" class="app-logo-img">
-        <div class="app-nav">
-            <a href="/ingredients">Ingredients</a>
-            <a href="/recipes">+ New Recipe</a>
-            <a href="/recipes/list">All Recipes</a>
-            <a href="/waste">Waste Tracking</a>
-            <span id="userEmail"></span>
-            <button id="logoutBtn" class="btn-link">Log Out</button>
-        </div>
-    </div>
+    <div th:replace="~{fragments/nav :: nav}"></div>
 
     <div class="app-content">
         <h1>Waste Tracking</h1>
@@ -126,14 +116,9 @@
     .btn-secondary.active { background: var(--charcoal); color: var(--white); border-color: var(--charcoal); }
 </style>
 
+<script src="/js/nav.js"></script>
 <script>
     const token = localStorage.getItem('grillogic_token');
-    if (!token) window.location.href = '/login';
-    document.getElementById('userEmail').textContent = localStorage.getItem('grillogic_email') || '';
-    document.getElementById('logoutBtn').addEventListener('click', function() {
-        localStorage.clear();
-        window.location.href = '/login';
-    });
 
     let allIngredients = [];
     let allSubRecipes = [];

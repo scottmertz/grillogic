@@ -8,17 +8,7 @@
 <body>
 
 <div class="app-container">
-    <div class="app-header">
-        <img src="/img/logo.png" alt="GRILLOGIC" class="app-logo-img">
-        <div class="app-nav">
-            <a href="/ingredients">Ingredients</a>
-            <a href="/vendors">Vendors</a>
-            <a href="/recipes/list">All Recipes</a>
-            <a href="/waste">Waste Tracking</a>
-            <span id="userEmail"></span>
-            <button id="logoutBtn" class="btn-link">Log Out</button>
-        </div>
-    </div>
+    <div th:replace="~{fragments/nav :: nav}"></div>
 
     <div class="app-content">
         <h1>Invoice Capture</h1>
@@ -71,14 +61,9 @@
     </div>
 </div>
 
+<script src="/js/nav.js"></script>
 <script>
     const token = localStorage.getItem('grillogic_token');
-    if (!token) window.location.href = '/login';
-    document.getElementById('userEmail').textContent = localStorage.getItem('grillogic_email') || '';
-    document.getElementById('logoutBtn').addEventListener('click', function() {
-        localStorage.clear();
-        window.location.href = '/login';
-    });
 
     const UNIT_OPTIONS = ['G', 'KG', 'OZ', 'LB', 'ML', 'L', 'FL_OZ', 'CUP', 'TSP', 'TBSP', 'EACH'];
     const CATEGORY_OPTIONS = ['Protein', 'Produce', 'Dairy', 'Dry Goods', 'Condiment', 'Beverage', 'Other'];
@@ -142,8 +127,6 @@
         }
     });
 
-    // Best-effort exact/substring match against Claude's vendor name guess —
-    // this just pre-selects the dropdown, it never auto-creates a vendor.
     function tryPreselectVendor(vendorNameGuess) {
         if (!vendorNameGuess) return;
         const guess = vendorNameGuess.toLowerCase();
@@ -245,7 +228,6 @@
         datalist.innerHTML = allIngredients.map(i => `<option value="${i.name}">`).join('');
         if (!document.getElementById('ing-list')) document.body.appendChild(datalist);
 
-        // Re-check match status live as the name field is edited.
         currentLineItems.forEach((item, idx) => {
             document.getElementById('name-' + idx).addEventListener('input', function() {
                 const match = findMatchingIngredient(this.value);

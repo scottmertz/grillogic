@@ -8,16 +8,7 @@
 <body>
 
 <div class="app-container">
-    <div class="app-header">
-        <img src="/img/logo.png" alt="GRILLOGIC" class="app-logo-img">
-        <div class="app-nav">
-            <a href="/ingredients">Ingredients</a>
-            <a href="/vendors">Vendors</a>
-            <a href="/recipes">+ New Recipe</a>
-            <span id="userEmail"></span>
-            <button id="logoutBtn" class="btn-link">Log Out</button>
-        </div>
-    </div>
+    <div th:replace="~{fragments/nav :: nav}"></div>
 
     <div class="app-content">
         <h1>Recipes</h1>
@@ -40,21 +31,16 @@
     </div>
 </div>
 
+<script src="/js/nav.js"></script>
 <script>
     const token = localStorage.getItem('grillogic_token');
-    if (!token) window.location.href = '/login';
-    document.getElementById('userEmail').textContent = localStorage.getItem('grillogic_email') || '';
-    document.getElementById('logoutBtn').addEventListener('click', function() {
-        localStorage.clear();
-        window.location.href = '/login';
-    });
 
     function foodCostBadge(pct) {
         if (pct === null || pct === undefined) return '<span style="color:#888;">N/A</span>';
         const percent = (pct * 100).toFixed(1) + '%';
-        let color = '#2D6A4F'; // good
-        if (pct * 100 >= 35) color = '#CC3300'; // high/critical
-        else if (pct * 100 >= 30) color = '#E67E22'; // borderline
+        let color = '#2D6A4F';
+        if (pct * 100 >= 35) color = '#CC3300';
+        else if (pct * 100 >= 30) color = '#E67E22';
         return `<b style="color:${color};">${percent}</b>`;
     }
 

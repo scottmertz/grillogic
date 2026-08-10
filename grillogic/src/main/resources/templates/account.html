@@ -8,14 +8,7 @@
 <body>
 
 <div class="app-container">
-    <div class="app-header">
-        <img src="/img/logo.png" alt="GRILLOGIC" class="app-logo-img">
-        <div class="app-nav">
-            <a href="/dashboard" id="dashLink">Dashboard</a>
-            <span id="userEmail"></span>
-            <button id="logoutBtn" class="btn-link">Log Out</button>
-        </div>
-    </div>
+    <div th:replace="~{fragments/nav :: nav}"></div>
 
     <div class="app-content">
         <h1>My Account</h1>
@@ -70,26 +63,15 @@
     </div>
 </div>
 
+<script src="/js/nav.js"></script>
 <script>
     const token = localStorage.getItem('grillogic_token');
-    if (!token) window.location.href = '/login';
-    document.getElementById('userEmail').textContent = localStorage.getItem('grillogic_email') || '';
-
-    const role = localStorage.getItem('grillogic_role');
-    document.getElementById('dashLink').href = role === 'ADMIN' ? '/admin' : '/dashboard';
-
-    document.getElementById('logoutBtn').addEventListener('click', function() {
-        localStorage.clear();
-        window.location.href = '/login';
-    });
 
     async function loadManagers() {
         const response = await fetch('/api/account/managers', {
             headers: { 'Authorization': 'Bearer ' + token }
         });
 
-        // If this fails, the logged-in user is a manager themselves (not the owner) —
-        // just hide the whole card rather than show an error for a normal case.
         if (!response.ok) {
             document.getElementById('teamCard').style.display = 'none';
             return;

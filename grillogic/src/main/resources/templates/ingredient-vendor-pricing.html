@@ -8,17 +8,7 @@
 <body>
 
 <div class="app-container">
-    <div class="app-header">
-        <img src="/img/logo.png" alt="GRILLOGIC" class="app-logo-img">
-        <div class="app-nav">
-            <a href="/ingredients">Ingredients</a>
-            <a href="/vendors">Vendors</a>
-            <a href="/recipes/list">All Recipes</a>
-            <a href="/waste">Waste Tracking</a>
-            <span id="userEmail"></span>
-            <button id="logoutBtn" class="btn-link">Log Out</button>
-        </div>
-    </div>
+    <div th:replace="~{fragments/nav :: nav}"></div>
 
     <div class="app-content">
         <a href="/ingredients" style="font-size:9pt; color:var(--mgray);">&larr; Back to Ingredients</a>
@@ -85,14 +75,9 @@
     </div>
 </div>
 
+<script src="/js/nav.js"></script>
 <script>
     const token = localStorage.getItem('grillogic_token');
-    if (!token) window.location.href = '/login';
-    document.getElementById('userEmail').textContent = localStorage.getItem('grillogic_email') || '';
-    document.getElementById('logoutBtn').addEventListener('click', function() {
-        localStorage.clear();
-        window.location.href = '/login';
-    });
 
     const pathParts = window.location.pathname.split('/');
     const ingredientId = pathParts[2];
@@ -138,8 +123,6 @@
         if (!response) return;
         const quotes = await response.json();
 
-        // Find the cheapest cost-per-unit among quotes that share the same unit —
-        // comparing across different units (e.g. LB vs OZ) isn't apples to apples here.
         const costPerUnit = q => q.purchasePrice / q.purchaseAmount;
         const cheapestByUnit = {};
         quotes.forEach(q => {
