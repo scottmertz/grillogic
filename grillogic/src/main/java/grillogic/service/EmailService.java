@@ -1,38 +1,68 @@
 package grillogic.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+
+// Sends email via Resend's HTTPS API instead of raw SMTP. This matters specifically
+// because Railway (and most cloud hosts) block outbound SMTP ports on free/hobby
+// plans to prevent spam abuse — an HTTPS API call has no such restriction.
 @Service
 public class EmailService {
 
-    private final JavaMailSender mailSender;
+    @Value("${resend.api.key:}")
+    private String apiKey;
 
-    @Autowired
-    public EmailService(JavaMailSender mailSender) {
-        this.mailSender = mailSender;
-    }
+    private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void sendWelcomeEmail(String toEmail, String tempPassword) {
-        System.out.println(">>> ATTEMPTING TO SEND EMAIL TO: [" + toEmail + "]");
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new RuntimeException("Resend API key not configured. Set resend.api.key.");
+        }
 
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom("smertz@getgrillogic.com");
-        message.setTo(toEmail);
-        message.setSubject("Welcome to GRILLOGIC — Your Account Is Ready");
-        message.setText(
+        String textBody =
                 "Thanks for your payment! Your GRILLOGIC account has been created.\n\n" +
                         "Login at: https://getgrillogic.com/login\n" +
                         "Email: " + toEmail + "\n" +
                         "Temporary Password: " + tempPassword + "\n\n" +
                         "We recommend logging in and updating this as soon as possible.\n\n" +
-                        "— Scott Mertz, GRILLOGIC"
-        );
+                        "— Scott Mertz, GRILLOGIC";
 
-        mailSender.send(message);
+        System.out.println(">>> ATTEMPTING TO SEND EMAIL VIA RESEND TO: [" + toEmail + "]");
 
-        System.out.println(">>> EMAIL SEND CALL COMPLETED — no exception thrown, SMTP server accepted it.");
+        try {
+            ObjectNode body = objectMapper.createObjectNode();
+            body.put("from", "GRILLOGIC <smertz@getgrillogic.com>");
+            body.put("to", toEmail);
+            body.put("subject", "Welcome to GRILLOGIC — Your Account Is Ready");
+            body.put("text", textBody);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.resend.com/emails"))
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            System.out.println(">>> Resend response status: " + response.statusCode());
+            System.out.println(">>> Resend response body: " + response.body());
+
+            if (response.statusCode() >= 300) {
+                throw new RuntimeException("Resend API returned error " + response.statusCode() + ": " + response.body());
+            }
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to send welcome email via Resend: " + e.getMessage(), e);
+        }
     }
 }
