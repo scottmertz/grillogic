@@ -29,7 +29,7 @@ public class EmailService {
 
         String textBody =
                 "Thanks for your payment! Your GRILLOGIC account has been created.\n\n" +
-                        "Login at: https://getgrillogic.com/login\n" +
+                        "Login at: https://grillogic-production.up.railway.app/login\n" +
                         "Email: " + toEmail + "\n" +
                         "Temporary Password: " + tempPassword + "\n\n" +
                         "We recommend logging in and updating this as soon as possible.\n\n" +
